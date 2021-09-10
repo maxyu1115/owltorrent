@@ -4,4 +4,5 @@ plugins {
 dependencies {
     implementation project(":owltorrent-core")
     implementation project(":owltorrent-locator")
+    implementation project(":owltorrent-storage")
 }
