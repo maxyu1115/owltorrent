@@ -1,0 +1,5 @@
+rootProject.name = 'owltorrent'
+include 'owltorrent-core'
+include 'owltorrent-client'
+include 'owltorrent-locator'
+
