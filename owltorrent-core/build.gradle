@@ -2,4 +2,5 @@ plugins {
 }
 
 dependencies {
+    compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
 }

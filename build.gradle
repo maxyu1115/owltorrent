@@ -28,5 +28,27 @@ allprojects {
 
         testCompile "org.mockito:mockito-core:${mockitoVersion}"
         // testCompile "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+
+        compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: logVersion
+        compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: logVersion
+    }
+
+    clean {
+        delete "${projectDir}/logs/"
+        println "${projectDir}/logs/"
+    }
+
+    // Adds the shared resources folder to the resource path for all modules
+    sourceSets {
+        main {
+            resources {
+                srcDirs = ["src/main/resource", "../shared-resources"]
+            }
+        }
+        test {
+            resources {
+                srcDirs = ["src/test/resource", "../shared-resources"]
+            }
+        }
     }
 }

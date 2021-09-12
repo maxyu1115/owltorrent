@@ -2,7 +2,17 @@ plugins {
 }
 
 dependencies {
-    implementation project(":owltorrent-core")
-    implementation project(":owltorrent-locator")
-    implementation project(":owltorrent-storage")
+    compile project(":owltorrent-core")
+    compile project(":owltorrent-locator")
+    compile project(":owltorrent-storage")
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'edu.rice.owltorrent.client.HelloWorldClient'
+    }
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
