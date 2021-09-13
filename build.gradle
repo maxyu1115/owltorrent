@@ -1,6 +1,20 @@
 plugins {
     id 'java'
     id 'com.github.sherter.google-java-format' version '0.9'
+    id 'jacoco'
+}
+
+
+jacoco {
+    toolVersion = "${jacocoVersion}"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true
+        csv.enabled = false
+        html.destination file("${buildDir}/reports/jacoco/")
+    }
 }
 
 dependencies {
@@ -9,12 +23,18 @@ dependencies {
 allprojects {
     apply plugin: 'java'
     apply plugin: 'com.github.sherter.google-java-format'
+    apply plugin: 'jacoco'
 
     group 'edu.rice'
     version '1.0-SNAPSHOT'
 
     repositories {
         mavenCentral()
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     dependencies {
@@ -35,7 +55,13 @@ allprojects {
 
     clean {
         delete "${projectDir}/logs/"
-        println "${projectDir}/logs/"
+    }
+
+    test {
+        finalizedBy jacocoTestReport // report is always generated after tests run
+    }
+    jacocoTestReport {
+        dependsOn test // tests are required to run before generating the report
     }
 
     // Adds the shared resources folder to the resource path for all modules
@@ -43,11 +69,6 @@ allprojects {
         main {
             resources {
                 srcDirs = ["src/main/resource", "../shared-resources"]
-            }
-        }
-        test {
-            resources {
-                srcDirs = ["src/test/resource", "../shared-resources"]
             }
         }
     }
