@@ -3,8 +3,6 @@ plugins {
 
 dependencies {
     compile project(":owltorrent-core")
-    compile project(":owltorrent-locator")
-    compile project(":owltorrent-storage")
 }
 
 jar {

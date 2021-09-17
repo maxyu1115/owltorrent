@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.locator;
+package edu.rice.owltorrent.network;
 
 import org.junit.Test;
 

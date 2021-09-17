@@ -1,6 +1,6 @@
 package edu.rice.owltorrent.core;
 
-import edu.rice.owltorrent.core.entity.Torrent;
+import edu.rice.owltorrent.common.entity.Torrent;
 import java.util.List;
 
 public interface PeerLocator {

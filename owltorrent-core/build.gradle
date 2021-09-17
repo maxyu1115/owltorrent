@@ -2,5 +2,9 @@ plugins {
 }
 
 dependencies {
+    compile project(":owltorrent-common")
+    compile project(":owltorrent-network")
+    compile project(":owltorrent-storage")
+
     compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
 }

@@ -1,7 +1,7 @@
 package edu.rice.owltorrent.client;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.core.Peer;
-import edu.rice.owltorrent.core.entity.Torrent;
 import edu.rice.owltorrent.core.serialization.TempParser;
 import java.io.BufferedReader;
 import java.io.File;
