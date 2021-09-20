@@ -2,12 +2,9 @@ plugins {
 }
 
 dependencies {
-    compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
-}
+    compile project(":owltorrent-common")
+    compile project(":owltorrent-network")
+    compile project(":owltorrent-storage")
 
-test {
-    testLogging {
-        events "failed"
-        exceptionFormat "full"
-    }
+    compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
 }

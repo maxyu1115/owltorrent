@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.core;
+package edu.rice.owltorrent.common.entity;
 
 import lombok.Data;
 

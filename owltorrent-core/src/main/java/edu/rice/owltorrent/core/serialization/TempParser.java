@@ -1,7 +1,7 @@
 package edu.rice.owltorrent.core.serialization;
 
 import com.dampcake.bencode.BencodeInputStream;
-import edu.rice.owltorrent.core.Torrent;
+import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;

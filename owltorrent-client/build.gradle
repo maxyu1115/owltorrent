@@ -3,8 +3,6 @@ plugins {
 
 dependencies {
     compile project(":owltorrent-core")
-    compile project(":owltorrent-locator")
-    compile project(":owltorrent-storage")
 }
 
 jar {
@@ -14,12 +12,5 @@ jar {
 
     from {
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-}
-
-test {
-    testLogging {
-        events "failed"
-        exceptionFormat "full"
     }
 }
