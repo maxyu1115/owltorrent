@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import org.junit.Test;
 
+/** @author Josh */
 public class DownloadFileTest {
 
   /**
@@ -26,7 +27,8 @@ public class DownloadFileTest {
     int pieceSize = 41;
     int blockSize = 11;
 
-    // Delete the file if it already exists
+    // Delete the file if it already exists. Ignore exceptions because we do not care if it does not
+    // exist.
     try {
       Files.delete(testFilePath);
     } catch (Exception ignored) {
@@ -48,6 +50,9 @@ public class DownloadFileTest {
       }
     }
 
+    // Close the file
+    fileToWriteTo.finishFile();
+
     // Read the file back and make sure it is as expected
     byte[] fileContent = Files.readAllBytes(testFilePath);
     for (int i = 0; i < fileContent.length; i++) {
@@ -55,9 +60,6 @@ public class DownloadFileTest {
     }
 
     // Delete the file to clean up
-    try {
-      Files.delete(Paths.get(testFileName));
-    } catch (Exception ignored) {
-    }
+    Files.delete(Paths.get(testFileName));
   }
 }

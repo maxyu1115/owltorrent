@@ -6,16 +6,16 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 /**
- * Represents the local disk version of a file that a client is downloading from the BitTorrent
- * network.
+ * @author Josh Represents the local disk version of a file that a client is downloading from the
+ *     BitTorrent network.
  */
 public class DownloadFile {
 
-  static class FileAlreadyExistsException extends Exception {}
+  public static class FileAlreadyExistsException extends Exception {}
 
-  static class FileCouldNotBeCreatedException extends Exception {}
+  public static class FileCouldNotBeCreatedException extends Exception {}
 
-  static class IllegalByteOffsets extends Exception {}
+  public static class IllegalByteOffsets extends Exception {}
 
   private long pieceSize;
   private long numBytes;
@@ -89,6 +89,16 @@ public class DownloadFile {
 
     file.seek(startOffset);
     file.write(blockData);
+  }
+
+  /**
+   * Lets the object know that we are done writing to the file, and any file descriptors can be
+   * closed.
+   *
+   * @throws IOException If closing the file fails
+   */
+  public void finishFile() throws IOException {
+    file.close();
   }
 
   /** Returns whether the input file currently exists */
