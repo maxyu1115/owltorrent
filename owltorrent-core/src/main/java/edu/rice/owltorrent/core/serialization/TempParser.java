@@ -15,6 +15,6 @@ public class TempParser {
     BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
     var dict = bencodeInputStream.readDictionary();
     System.out.println(dict.keySet());
-    return new Torrent((String) dict.get("announce"));
+    return new Torrent();
   }
 }
