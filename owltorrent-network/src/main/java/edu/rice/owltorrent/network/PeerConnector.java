@@ -3,6 +3,7 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.messages.PieceMessage;
+import java.io.DataInputStream;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 
@@ -12,9 +13,11 @@ import lombok.RequiredArgsConstructor;
  * @author Lorraine Lyu, Max Yu
  */
 @RequiredArgsConstructor
-public abstract class PeerConnector {
+public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
   protected final NetworkToStorageAdapter storageAdapter;
+
+  protected final MessageReader messageReader;
 
   /**
    * Connects to the remote peer. Normally this would involve handshaking.
@@ -25,7 +28,11 @@ public abstract class PeerConnector {
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 
-  protected void handleMessage(PeerMessage message) {
+  protected final void handleMessage(DataInputStream inputStream) {
+    handleMessage(messageReader.readMessage(inputStream));
+  }
+
+  protected final void handleMessage(PeerMessage message) {
     switch (message.getMessageType()) {
       case CHOKE:
         peer.setChoked(true);
