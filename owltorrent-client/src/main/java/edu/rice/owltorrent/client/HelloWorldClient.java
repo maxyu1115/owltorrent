@@ -27,6 +27,7 @@ public class HelloWorldClient {
     try {
       serverSocket = new ServerSocket(portNumber);
     } catch (IOException e) {
+      log.error("Cannot initiate local server.");
       e.printStackTrace();
       return;
     }
