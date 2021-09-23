@@ -31,5 +31,10 @@ public class Torrent {
   /** The length of the file, in bytes. */
   private int length;
 
+  public byte[] getInfoHash() {
+    // TODO: compute info hash
+    return new byte[20];
+  }
+
   public Torrent() {}
 }

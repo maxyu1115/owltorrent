@@ -39,7 +39,7 @@ public class HelloWorldClient {
         //  out.println(outputLine);
         //  if (outputLine.equals("Bye."))
         //    break;
-        log.info("Hello World!");
+        log.info(inputLine);
       }
     } catch (IOException e) {
       log.error(
