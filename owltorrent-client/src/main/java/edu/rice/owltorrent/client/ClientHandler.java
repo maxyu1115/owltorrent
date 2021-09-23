@@ -15,7 +15,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
   ClientHandler(Socket socket) {
     this.socket = socket;
-    log.error("connected to peer");
+    log.info("connected to peer");
   }
 
   public void run() {
@@ -30,7 +30,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
         // writing the received message from
         // client
-        log.error(String.format(" Sent from the client: %s\n", line));
+        log.info(String.format(" Sent from the client: %s\n", line));
         // out.println(line);
       }
     } catch (IOException e) {
