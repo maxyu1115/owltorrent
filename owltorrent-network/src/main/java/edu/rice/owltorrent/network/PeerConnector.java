@@ -1,6 +1,8 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public abstract class PeerConnector {
   protected final Peer peer;
+  protected final NetworkToStorageAdapter storageAdapter;
 
   /**
    * Connects to the remote peer. Normally this would involve handshaking.
@@ -39,7 +42,9 @@ public abstract class PeerConnector {
       case HAVE:
       case BITFIELD:
       case REQUEST:
+        break;
       case PIECE:
+        storageAdapter.write(((PieceMessage) message).getFilePiece());
         break;
       case CANCEL:
       default:

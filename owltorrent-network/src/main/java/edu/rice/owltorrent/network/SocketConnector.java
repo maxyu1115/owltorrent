@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -16,8 +17,8 @@ public class SocketConnector extends PeerConnector {
   private DataOutputStream out;
   private DataInputStream in;
 
-  public SocketConnector(Peer peer) throws IOException {
-    super(peer);
+  public SocketConnector(Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
+    super(peer, storageAdapter);
     peerSocket = new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort());
   }
 
