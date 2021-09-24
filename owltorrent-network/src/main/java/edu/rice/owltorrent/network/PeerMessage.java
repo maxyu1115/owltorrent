@@ -13,7 +13,11 @@ import java.util.Map;
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 
-/** @author Lorraine Lyu */
+/**
+ * Abstract message class for messages sent between peers.
+ *
+ * @author Lorraine Lyu
+ */
 @Data
 @Log4j2(topic = "general")
 public abstract class PeerMessage {

@@ -4,7 +4,12 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 
-public class KeepAliveMessage extends PeerMessage {
+/**
+ * Message sent to keep connection alive.
+ *
+ * @author Max Yu
+ */
+public final class KeepAliveMessage extends PeerMessage {
 
   public KeepAliveMessage() {
     super(MessageType.KEEP_ALIVE);
