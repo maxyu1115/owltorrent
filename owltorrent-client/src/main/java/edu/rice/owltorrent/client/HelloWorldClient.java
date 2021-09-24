@@ -3,14 +3,10 @@ package edu.rice.owltorrent.client;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.core.Peer;
 import edu.rice.owltorrent.core.serialization.TempParser;
+import edu.rice.owltorrent.network.HandShakeListener;
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.UnknownHostException;
-
-import edu.rice.owltorrent.network.ClientHandler;
-import edu.rice.owltorrent.network.HandShakeListener;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 

@@ -1,14 +1,14 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.common.entity.Torrent;
+import java.nio.ByteBuffer;
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
-import java.nio.ByteBuffer;
 
 /** @author Lorraine Lyu */
 @Data
-@Log4j2(topic="general")
+@Log4j2(topic = "general")
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
   public static final int LENGTH_FIELD_SIZE = 4;
