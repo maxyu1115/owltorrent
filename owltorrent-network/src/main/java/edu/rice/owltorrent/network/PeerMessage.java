@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.messages.KeepAliveMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Abstract message class for messages sent between peers.
@@ -18,6 +20,7 @@ import lombok.EqualsAndHashCode;
  * @author Lorraine Lyu
  */
 @Data
+@Log4j2(topic = "general")
 @EqualsAndHashCode
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
@@ -127,5 +130,34 @@ public abstract class PeerMessage {
       default:
         throw new IllegalStateException("Illegal Message Type.");
     }
+  }
+
+  static final byte[] constructHelloWorldMessage(Peer peer) {
+    ByteBuffer message = ByteBuffer.allocate(68);
+    message.put((byte) 19);
+    byte[] pstr = new String("BitTorrent protocol").getBytes();
+    message.put(pstr);
+    message.put(new byte[8]);
+    message.put(peer.getTorrent().getInfoHash());
+    message.put(peer.getPeerID().getBytes());
+    return message.array();
+  }
+
+  static final boolean confirmHandShake(byte[] buffer, Peer peer) {
+    if (buffer[0] != 19) return false;
+
+    byte[] title = "BitTorrent protocol".getBytes();
+    for (int i = 1; i < 20; i++) if (title[i - 1] != buffer[i]) return false;
+    byte[] infoHash = peer.getTorrent().getInfoHash();
+    for (int i = 28; i < 48; i++) {
+      if (infoHash[i - 28] != buffer[i]) return false;
+    }
+
+    byte[] peerId = peer.getPeerID().getBytes();
+    for (int i = 48; i < 68; i++) {
+      if (peerId[i - 48] != buffer[i]) return false;
+    }
+
+    return true;
   }
 }
