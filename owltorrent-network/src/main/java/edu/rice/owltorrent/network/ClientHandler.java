@@ -1,9 +1,12 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.entity.Peer;
 import java.io.*;
 import java.net.Socket;
 import java.util.Optional;
+
+import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.common.entity.Torrent;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2(topic = "general")
