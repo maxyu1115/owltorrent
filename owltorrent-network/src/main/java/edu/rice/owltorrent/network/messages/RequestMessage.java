@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network.messages;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.Getter;
@@ -36,5 +37,19 @@ public class RequestMessage extends PeerMessage {
     // Sets position to 0
     buffer.rewind();
     return buffer.array();
+  }
+
+  @Override
+  public boolean verify(Torrent torrent) {
+    // TODO add torrent file piece size
+    return this.index >= 0 && this.index < torrent.getPieceLength();
+    //   && this.begin + this.length <= torrent.getPieceSize(this.piece);
+  }
+
+  public static RequestMessage parse(ByteBuffer buffer) {
+    int index = buffer.getInt();
+    int begin = buffer.getInt();
+    int length = buffer.getInt();
+    return new RequestMessage(index, begin, length);
   }
 }

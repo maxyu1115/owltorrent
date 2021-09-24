@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.network.messages;
 
 import edu.rice.owltorrent.common.entity.FilePiece;
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.EqualsAndHashCode;
@@ -45,5 +46,17 @@ public class PieceMessage extends PeerMessage {
     // Sets position to 0
     buffer.rewind();
     return buffer.array();
+  }
+
+  @Override
+  public boolean verify(Torrent torrent) {
+    // TODO: write verification logic. Currently blocked by hash function refactor
+    return true;
+  }
+
+  public static PieceMessage parse(ByteBuffer buffer) {
+    int index = buffer.getInt();
+    int begin = buffer.getInt();
+    return new PieceMessage(index, begin, buffer.slice().array());
   }
 }
