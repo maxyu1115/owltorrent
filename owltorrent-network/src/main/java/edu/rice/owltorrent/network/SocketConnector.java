@@ -18,15 +18,42 @@ public class SocketConnector extends PeerConnector {
   private DataOutputStream out;
   private DataInputStream in;
 
-  public SocketConnector(
+  private SocketConnector(
+      Peer peer,
+      NetworkToStorageAdapter storageAdapter,
+      MessageReader messageReader,
+      Socket peerSocket) {
+    super(peer, storageAdapter, messageReader);
+    this.peerSocket = peerSocket;
+  }
+
+  public static SocketConnector initiateConnection(
       Peer peer, NetworkToStorageAdapter storageAdapter, MessageReader messageReader)
       throws IOException {
-    super(peer, storageAdapter, messageReader);
-    peerSocket = new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort());
+    SocketConnector connector =
+        new SocketConnector(
+            peer,
+            storageAdapter,
+            messageReader,
+            new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
+    connector.initiateConnection();
+    return connector;
+  }
+
+  public static SocketConnector respondToConnection(
+      Peer peer,
+      Socket peerSocket,
+      NetworkToStorageAdapter storageAdapter,
+      MessageReader messageReader)
+      throws IOException {
+    SocketConnector connector =
+        new SocketConnector(peer, storageAdapter, messageReader, peerSocket);
+    connector.respondToConnection();
+    return connector;
   }
 
   @Override
-  public void connect() throws IOException {
+  protected void initiateConnection() throws IOException {
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
@@ -44,6 +71,14 @@ public class SocketConnector extends PeerConnector {
               while (true) {}
             })
         .start();
+  }
+
+  @Override
+  protected void respondToConnection() throws IOException {
+    this.in = new DataInputStream(peerSocket.getInputStream());
+    this.out = new DataOutputStream(peerSocket.getOutputStream());
+
+    this.out.write(constructHandShakeMessage(this.peer));
   }
 
   @Override

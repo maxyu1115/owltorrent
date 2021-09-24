@@ -17,7 +17,9 @@ import lombok.ToString;
 @EqualsAndHashCode
 public class Peer {
   @Getter private final PeerID peerID;
+  /** NOTE: address may be null!!! */
   @Getter private final InetSocketAddress address;
+
   @Getter private final Torrent torrent;
 
   private final AtomicBoolean interested = new AtomicBoolean();
