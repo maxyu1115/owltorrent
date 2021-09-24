@@ -8,7 +8,7 @@ import java.net.Socket;
 
 @Log4j2(topic = "general")
 public class HandShakeListener {
-    static void listenOnPort(int port) {
+    public static void listenOnPort(int port) {
         ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(port);

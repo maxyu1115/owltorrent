@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 import edu.rice.owltorrent.network.ClientHandler;
+import edu.rice.owltorrent.network.HandShakeListener;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
@@ -22,31 +23,6 @@ public class HelloWorldClient {
 
   public HelloWorldClient(String torrentFileLocation) {
     this.torrentFileLocation = torrentFileLocation;
-  }
-
-  private void listenToPort(int portNumber) {
-    ServerSocket serverSocket = null;
-    try {
-      serverSocket = new ServerSocket(portNumber);
-    } catch (IOException e) {
-      log.error("Cannot initiate local server.");
-      e.printStackTrace();
-      return;
-    }
-    while (true) {
-      try {
-        Socket clientSocket = serverSocket.accept();
-        ClientHandler handler = new ClientHandler(clientSocket);
-        new Thread(handler).start();
-      } catch (IOException ioException) {
-        ioException.printStackTrace();
-        log.error(
-            "Exception caught when trying to listen on port "
-                + portNumber
-                + " or listening for a connection");
-        log.error(ioException.getMessage());
-      }
-    }
   }
 
   private void talkToPort(String hostName, int portNumber) {
@@ -85,7 +61,7 @@ public class HelloWorldClient {
 
   public void run() throws IOException {
     if (torrentFileLocation == null) {
-      listenToPort(8080);
+      HandShakeListener.listenOnPort(8080);
     } else {
       File file = new File(torrentFileLocation);
       Torrent torrent = parser.parse(file);
