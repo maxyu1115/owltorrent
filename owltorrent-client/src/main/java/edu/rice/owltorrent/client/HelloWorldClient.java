@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+
+import edu.rice.owltorrent.network.ClientHandler;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
