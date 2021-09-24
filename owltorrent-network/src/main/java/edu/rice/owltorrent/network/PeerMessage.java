@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import lombok.Data;
 
 /** @author Lorraine Lyu */
@@ -41,4 +42,10 @@ public abstract class PeerMessage {
   }
 
   public abstract byte[] toBytes();
+
+  public abstract PeerMessage parse(Torrent torrent);
+
+  public abstract PeerMessage construct();
+
+  public abstract boolean verify(Torrent torrent);
 }
