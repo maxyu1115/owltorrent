@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.common.entity;
 
+import java.util.HashMap;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,7 @@ public class Torrent {
   private String name;
 
   /** The number of bytes in each piece the file is split into */
-  private int pieceLength;
+  private long pieceLength;
 
   /**
    * A string whose length is a multiple of 20. It is to be subdivided into strings of length 20,
@@ -28,8 +29,8 @@ public class Torrent {
    */
   private List<String> pieces;
 
-  /** The length of the file, in bytes. */
-  private int length;
+  /** The lengths of each file in Torrent. */
+  private HashMap<String, Long> fileLengths;
 
   public Torrent() {}
 }
