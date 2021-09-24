@@ -11,7 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 
-/** @author Lorraine Lyu */
+/**
+ * Abstract message class for messages sent between peers.
+ *
+ * @author Lorraine Lyu
+ */
 @Data
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */

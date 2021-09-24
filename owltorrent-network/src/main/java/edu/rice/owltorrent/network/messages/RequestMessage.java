@@ -5,7 +5,11 @@ import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.Getter;
 
-/** @author Lorraine Lyu */
+/**
+ * Message sent to request piece from peer
+ *
+ * @author Lorraine Lyu
+ */
 @Getter
 public class RequestMessage extends PeerMessage {
 
