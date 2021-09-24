@@ -18,26 +18,32 @@ public class SocketConnector extends PeerConnector {
   private DataOutputStream out;
   private DataInputStream in;
 
-  public SocketConnector(Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
-    super(peer, storageAdapter);
+  public SocketConnector(
+      Peer peer, NetworkToStorageAdapter storageAdapter, MessageReader messageReader)
+      throws IOException {
+    super(peer, storageAdapter, messageReader);
     peerSocket = new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort());
   }
 
   @Override
   public void connect() throws IOException {
-    peerSocket.connect(peer.getAddress());
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
-    this.out.write(constructHelloWorldMessage(this.peer));
+    this.out.write(constructHandShakeMessage(this.peer));
 
     // read and confirm handshake from peer
     byte[] incomingHandshakeBuffer = new byte[68];
-    in.read(incomingHandshakeBuffer);
-    if (!confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+    int readByteLength = in.read(incomingHandshakeBuffer);
+    if (readByteLength != 68 || !confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID().getId()));
     }
+    new Thread(
+            () -> {
+              while (true) {}
+            })
+        .start();
   }
 
   @Override
@@ -45,7 +51,7 @@ public class SocketConnector extends PeerConnector {
     out.write(message.toBytes());
   }
 
-  private static byte[] constructHelloWorldMessage(Peer peer) {
+  private static byte[] constructHandShakeMessage(Peer peer) {
     ByteBuffer message = ByteBuffer.allocate(68);
     message.put((byte) 19);
     byte[] pstr = new String("BitTorrent protocol").getBytes();
@@ -72,5 +78,10 @@ public class SocketConnector extends PeerConnector {
     }
 
     return true;
+  }
+
+  @Override
+  public void close() throws Exception {
+    peerSocket.close();
   }
 }
