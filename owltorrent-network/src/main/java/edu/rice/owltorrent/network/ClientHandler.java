@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.client;
+package edu.rice.owltorrent.network;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,14 +25,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
       // get the inputstream of client
       in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-      String line;
-      while ((line = in.readLine()) != null) {
 
-        // writing the received message from
-        // client
-        log.info(String.format(" Sent from the client: %s\n", line));
-        // out.println(line);
-      }
     } catch (IOException e) {
       e.printStackTrace();
     }
