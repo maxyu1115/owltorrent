@@ -2,21 +2,41 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.network.messagereader.BusyWaitMessageReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Socket implementation of PeerConnector class.
  *
  * @author Lorraine Lyu, Max Yu
  */
+@Log4j2(topic = "general")
 public class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
   private DataOutputStream out;
   private DataInputStream in;
+
+  private final Runnable listenForInput =
+      new Runnable() {
+        @Override
+        public void run() {
+          ReadableByteChannel channel = Channels.newChannel(in);
+          while (true) {
+            try {
+              messageReader.readMessage(channel);
+            } catch (IOException e) {
+              log.error(e);
+            }
+          }
+        }
+      };
 
   private SocketConnector(
       Peer peer,
@@ -28,26 +48,21 @@ public class SocketConnector extends PeerConnector {
   }
 
   public static SocketConnector initiateConnection(
-      Peer peer, NetworkToStorageAdapter storageAdapter, MessageReader messageReader)
-      throws IOException {
+      Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
     SocketConnector connector =
         new SocketConnector(
             peer,
             storageAdapter,
-            messageReader,
+            new BusyWaitMessageReader(),
             new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
     connector.initiateConnection();
     return connector;
   }
 
   public static SocketConnector respondToConnection(
-      Peer peer,
-      Socket peerSocket,
-      NetworkToStorageAdapter storageAdapter,
-      MessageReader messageReader)
-      throws IOException {
+      Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
     SocketConnector connector =
-        new SocketConnector(peer, storageAdapter, messageReader, peerSocket);
+        new SocketConnector(peer, storageAdapter, new BusyWaitMessageReader(), peerSocket);
     connector.respondToConnection();
     return connector;
   }
@@ -66,11 +81,8 @@ public class SocketConnector extends PeerConnector {
       throw new IOException(
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID().getId()));
     }
-    new Thread(
-            () -> {
-              while (true) {}
-            })
-        .start();
+    // listen for input with busy waiting
+    new Thread(listenForInput).start();
   }
 
   @Override
@@ -79,6 +91,8 @@ public class SocketConnector extends PeerConnector {
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
     this.out.write(constructHandShakeMessage(this.peer));
+    // listen for input with busy waiting
+    new Thread(listenForInput).start();
   }
 
   @Override

@@ -40,17 +40,16 @@ public class RequestMessage extends PeerMessage {
   }
 
   @Override
-  public PeerMessage parse(Torrent torrent) {
-    return null;
-  }
-
-  @Override
-  public PeerMessage construct() {
-    return null;
-  }
-
-  @Override
   public boolean verify(Torrent torrent) {
-    return false;
+    // TODO add torrent file piece size
+    return this.index >= 0 && this.index < torrent.getPieceLength();
+    //   && this.begin + this.length <= torrent.getPieceSize(this.piece);
+  }
+
+  public static RequestMessage parse(ByteBuffer buffer) {
+    int index = buffer.getInt();
+    int begin = buffer.getInt();
+    int length = buffer.getInt();
+    return new RequestMessage(index, begin, length);
   }
 }

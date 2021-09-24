@@ -49,17 +49,14 @@ public class PieceMessage extends PeerMessage {
   }
 
   @Override
-  public PeerMessage parse(Torrent torrent) {
-    return null;
-  }
-
-  @Override
-  public PeerMessage construct() {
-    return null;
-  }
-
-  @Override
   public boolean verify(Torrent torrent) {
-    return false;
+    // TODO: write verification logic. Currently blocked by hash function refactor
+    return true;
+  }
+
+  public static PieceMessage parse(ByteBuffer buffer) {
+    int index = buffer.getInt();
+    int begin = buffer.getInt();
+    return new PieceMessage(index, begin, buffer.slice().array());
   }
 }
