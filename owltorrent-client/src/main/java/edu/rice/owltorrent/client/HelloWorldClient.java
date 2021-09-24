@@ -2,12 +2,8 @@ package edu.rice.owltorrent.client;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.core.Peer;
-import edu.rice.owltorrent.core.serialization.TempParser;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import edu.rice.owltorrent.core.serialization.TorrentParser;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -19,7 +15,7 @@ import lombok.extern.log4j.Log4j2;
 public class HelloWorldClient {
   private String torrentFileLocation;
 
-  private TempParser parser = new TempParser();
+  private TorrentParser parser = new TorrentParser();
 
   public HelloWorldClient(String torrentFileLocation) {
     this.torrentFileLocation = torrentFileLocation;

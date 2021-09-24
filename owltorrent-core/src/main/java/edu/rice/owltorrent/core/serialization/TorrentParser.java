@@ -66,11 +66,12 @@ public class TorrentParser {
     List<String> pieces = extractPieces((String) infoDict.get(piecesField));
 
     HashMap<String, Long> fileLengths = new HashMap<>();
-    if (infoDict.containsKey(filesField)) // Multiple files
-    fileLengths =
+    if (infoDict.containsKey(filesField)) { // Multiple files
+      fileLengths =
           getFileLengths((ArrayList<LinkedHashMap<String, String>>) infoDict.get(filesField));
-    else // Single file
-    fileLengths.put(name, (long) infoDict.get(lengthField));
+    } else { // Single file
+      fileLengths.put(name, (long) infoDict.get(lengthField));
+    }
 
     return new Torrent(announceURL, name, pieceLength, pieces, fileLengths);
   }
