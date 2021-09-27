@@ -2,7 +2,7 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
-import edu.rice.owltorrent.network.messagereader.BusyWaitMessageReader;
+import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -30,8 +30,10 @@ public class SocketConnector extends PeerConnector {
           ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
             try {
-              messageReader.readMessage(channel);
+              PeerMessage message = messageReader.readMessage(channel);
+              handleMessage(message);
             } catch (IOException e) {
+              // TODO: add more error handling.
               log.error(e);
             }
           }
@@ -53,7 +55,7 @@ public class SocketConnector extends PeerConnector {
         new SocketConnector(
             peer,
             storageAdapter,
-            new BusyWaitMessageReader(),
+            new SingleThreadBlockingMessageReader(),
             new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
     connector.initiateConnection();
     return connector;
@@ -62,7 +64,8 @@ public class SocketConnector extends PeerConnector {
   public static SocketConnector respondToConnection(
       Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
     SocketConnector connector =
-        new SocketConnector(peer, storageAdapter, new BusyWaitMessageReader(), peerSocket);
+        new SocketConnector(
+            peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
     connector.respondToConnection();
     return connector;
   }
@@ -75,9 +78,10 @@ public class SocketConnector extends PeerConnector {
     this.out.write(constructHandShakeMessage(this.peer));
 
     // read and confirm handshake from peer
-    byte[] incomingHandshakeBuffer = new byte[68];
+    byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
     int readByteLength = in.read(incomingHandshakeBuffer);
-    if (readByteLength != 68 || !confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+    if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
+        || !confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID().getId()));
     }

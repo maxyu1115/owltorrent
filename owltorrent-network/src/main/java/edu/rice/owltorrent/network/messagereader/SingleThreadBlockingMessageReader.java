@@ -14,15 +14,14 @@ import lombok.extern.log4j.Log4j2;
  * @author Max Yu
  */
 @Log4j2(topic = "general")
-public class BusyWaitMessageReader implements MessageReader {
-  private static final int DEF_BUFFER_SIZE = 16;
+public class SingleThreadBlockingMessageReader implements MessageReader {
 
   // 2 MB
   private static final int MAX_MESSAGE_SIZE = 2 * 1024 * 1024;
 
   @Override
   public PeerMessage readMessage(ReadableByteChannel inputChannel) throws IOException {
-    ByteBuffer buffer = ByteBuffer.allocate(DEF_BUFFER_SIZE);
+    ByteBuffer buffer = ByteBuffer.allocate(PeerMessage.LENGTH_FIELD_SIZE);
     buffer.limit(PeerMessage.LENGTH_FIELD_SIZE);
     int readBytes = inputChannel.read(buffer);
     if (readBytes < 0) {

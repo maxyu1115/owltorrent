@@ -23,6 +23,8 @@ public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
   public static final int LENGTH_FIELD_SIZE = 4;
 
+  public static final int HANDSHAKE_BYTE_SIZE = 68;
+
   public enum MessageType {
     KEEP_ALIVE(-1),
     CHOKE(0),
@@ -82,7 +84,9 @@ public abstract class PeerMessage {
    * @param torrent the torrent file
    * @return true if the message is valid
    */
-  public abstract boolean verify(Torrent torrent);
+  public boolean verify(Torrent torrent) {
+    return true;
+  }
 
   /**
    * Parses the bytes in the bytebuffer into a peer message. This method does NOT validate if the
@@ -95,10 +99,10 @@ public abstract class PeerMessage {
    */
   public static PeerMessage parse(ByteBuffer buffer) throws IOException {
     int length = buffer.getInt();
-    if (length == 0) {
-      return new KeepAliveMessage();
-    } else if (length != buffer.remaining()) {
+    if (length != buffer.remaining()) {
       throw new IOException("Message size did not match announced size!");
+    } else if (length == 0) {
+      return new KeepAliveMessage();
     }
 
     MessageType type = MessageType.getType(buffer.get());
