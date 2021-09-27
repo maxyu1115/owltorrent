@@ -12,17 +12,18 @@ import lombok.Value;
  *
  * @author Max Yu
  */
-@EqualsAndHashCode(callSuper = true)
 @Value
+@EqualsAndHashCode(callSuper = true)
 public class PieceMessage extends PeerMessage {
 
+  /** 2 * 4 from the index and begin and one index */
   private static final int BASE_SIZE = 9;
 
   int index;
   int begin;
   byte[] piece;
 
-  private PieceMessage(int index, int begin, byte[] piece) {
+  public PieceMessage(int index, int begin, byte[] piece) {
     super(MessageType.PIECE);
     this.index = index;
     this.begin = begin;
@@ -57,6 +58,8 @@ public class PieceMessage extends PeerMessage {
   public static PieceMessage parse(ByteBuffer buffer) {
     int index = buffer.getInt();
     int begin = buffer.getInt();
-    return new PieceMessage(index, begin, buffer.slice().array());
+    byte[] piece = new byte[buffer.remaining()];
+    buffer.get(piece);
+    return new PieceMessage(index, begin, piece);
   }
 }

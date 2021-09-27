@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * Abstract message class for messages sent between peers.
@@ -17,6 +18,7 @@ import lombok.Data;
  * @author Lorraine Lyu
  */
 @Data
+@EqualsAndHashCode
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
   public static final int LENGTH_FIELD_SIZE = 4;
@@ -84,7 +86,8 @@ public abstract class PeerMessage {
 
   /**
    * Parses the bytes in the bytebuffer into a peer message. This method does NOT validate if the
-   * message is valid.
+   * message is valid. This method accepts the bytebuffer with the first 5 bytes already parsed and
+   * truncated (4 bytes for the length and one byte for the identifier).
    *
    * @param buffer byte buffer containing message
    * @return peer message

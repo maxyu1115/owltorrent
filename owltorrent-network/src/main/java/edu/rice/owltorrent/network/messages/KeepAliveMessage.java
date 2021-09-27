@@ -3,12 +3,14 @@ package edu.rice.owltorrent.network.messages;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
+import lombok.EqualsAndHashCode;
 
 /**
  * Message sent to keep connection alive.
  *
  * @author Max Yu
  */
+@EqualsAndHashCode(callSuper = true)
 public final class KeepAliveMessage extends PeerMessage {
 
   public KeepAliveMessage() {

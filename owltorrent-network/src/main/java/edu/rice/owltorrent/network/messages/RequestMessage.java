@@ -3,6 +3,7 @@ package edu.rice.owltorrent.network.messages;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 /**
@@ -11,6 +12,7 @@ import lombok.Getter;
  * @author Lorraine Lyu
  */
 @Getter
+@EqualsAndHashCode(callSuper = true)
 public class RequestMessage extends PeerMessage {
 
   private static final int SIZE = 13;
