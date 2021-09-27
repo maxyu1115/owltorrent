@@ -3,6 +3,7 @@ package edu.rice.owltorrent.core.serialization;
 import static org.junit.Assert.*;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.junit.Test;
@@ -34,7 +35,7 @@ public class EncryptorTest {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
 
-      byte[] messageDigest = md.digest(testString.getBytes());
+      byte[] messageDigest = md.digest(testString.getBytes(StandardCharsets.US_ASCII));
 
       assertTrue(SHA1Encryptor.isSHA1HashEqual(testString, messageDigest));
     } catch (NoSuchAlgorithmException e) {
@@ -47,7 +48,7 @@ public class EncryptorTest {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
 
-      byte[] messageDigest = md.digest(testString.getBytes());
+      byte[] messageDigest = md.digest(testString.getBytes(StandardCharsets.US_ASCII));
 
       assertFalse(SHA1Encryptor.isSHA1HashEqual(testString + "random", messageDigest));
     } catch (NoSuchAlgorithmException e) {
@@ -59,7 +60,7 @@ public class EncryptorTest {
   public void testIsEqualWithEqualBytes() {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
-      byte[] testBytes = testString.getBytes();
+      byte[] testBytes = testString.getBytes(StandardCharsets.US_ASCII);
       byte[] messageDigest = md.digest(testBytes);
 
       assertTrue(SHA1Encryptor.isSHA1HashEqual(testBytes, messageDigest));
@@ -72,7 +73,7 @@ public class EncryptorTest {
   public void testIsEqualWithNotEqualBytes() {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
-      byte[] testBytes = testString.getBytes();
+      byte[] testBytes = testString.getBytes(StandardCharsets.US_ASCII);
       byte[] messageDigest = md.digest(testBytes);
       String diffString = testString + "random";
 

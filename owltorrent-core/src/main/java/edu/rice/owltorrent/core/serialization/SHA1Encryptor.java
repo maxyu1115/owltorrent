@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.core.serialization;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -21,7 +22,7 @@ public class SHA1Encryptor {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
 
-      return md.digest(input.getBytes());
+      return md.digest(input.getBytes(StandardCharsets.US_ASCII));
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException(e);
     }

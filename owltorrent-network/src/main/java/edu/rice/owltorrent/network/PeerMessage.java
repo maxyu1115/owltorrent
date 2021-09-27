@@ -7,6 +7,7 @@ import edu.rice.owltorrent.network.messages.PieceMessage;
 import edu.rice.owltorrent.network.messages.RequestMessage;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,10 +136,10 @@ public abstract class PeerMessage {
   static byte[] constructHandShakeMessage(Peer peer) {
     ByteBuffer message = ByteBuffer.allocate(68);
     message.put((byte) 19);
-    byte[] pstr = new String("BitTorrent protocol").getBytes();
+    byte[] pstr = new String("BitTorrent protocol").getBytes(StandardCharsets.US_ASCII);
     message.put(pstr);
     message.put(new byte[8]);
-    message.put(peer.getTorrent().getInfoHash());
+    message.put(peer.getTorrent().getInfoHash().getBytes());
     message.put(peer.getPeerID().getBytes());
     return message.array();
   }
@@ -146,9 +147,9 @@ public abstract class PeerMessage {
   static boolean confirmHandShake(byte[] buffer, Peer peer) {
     if (buffer[0] != 19) return false;
 
-    byte[] title = "BitTorrent protocol".getBytes();
+    byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
     for (int i = 1; i < 20; i++) if (title[i - 1] != buffer[i]) return false;
-    byte[] infoHash = peer.getTorrent().getInfoHash();
+    byte[] infoHash = peer.getTorrent().getInfoHash().getBytes();
     for (int i = 28; i < 48; i++) {
       if (infoHash[i - 28] != buffer[i]) return false;
     }

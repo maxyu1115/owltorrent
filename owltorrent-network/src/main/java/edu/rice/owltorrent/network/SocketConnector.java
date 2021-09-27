@@ -82,7 +82,7 @@ public class SocketConnector extends PeerConnector {
     if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
         || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
-          String.format("Invalid handshake from peer id=%s", this.peer.getPeerID().getId()));
+          String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
     new Thread(listenForInput).start();

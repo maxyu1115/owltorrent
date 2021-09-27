@@ -16,7 +16,7 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 public class Peer {
-  @Getter private final PeerID peerID;
+  @Getter private final TwentyByteId peerID;
   /** NOTE: address may be null!!! (for peers that connected to us) */
   @Getter private final InetSocketAddress address;
 
