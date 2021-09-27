@@ -58,7 +58,7 @@ public class HelloWorldClient {
 
   public void run() throws IOException {
     if (torrentFileLocation == null) {
-      HandShakeListener.listenOnPort(8080);
+      new HandShakeListener(null, 8080).run();
     } else {
       File file = new File(torrentFileLocation);
       Torrent torrent = parser.parse(file);

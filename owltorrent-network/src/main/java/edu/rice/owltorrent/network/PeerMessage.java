@@ -140,6 +140,7 @@ public abstract class PeerMessage {
     message.put(pstr);
     message.put(new byte[8]);
     message.put(peer.getTorrent().getInfoHash().getBytes());
+    // TODO: this should be our own peer id instead.
     message.put(peer.getPeerID().getBytes());
     return message.array();
   }
