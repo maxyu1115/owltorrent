@@ -132,7 +132,7 @@ public abstract class PeerMessage {
     }
   }
 
-  static final byte[] constructHelloWorldMessage(Peer peer) {
+  static byte[] constructHandShakeMessage(Peer peer) {
     ByteBuffer message = ByteBuffer.allocate(68);
     message.put((byte) 19);
     byte[] pstr = new String("BitTorrent protocol").getBytes();
@@ -143,7 +143,7 @@ public abstract class PeerMessage {
     return message.array();
   }
 
-  static final boolean confirmHandShake(byte[] buffer, Peer peer) {
+  static boolean confirmHandShake(byte[] buffer, Peer peer) {
     if (buffer[0] != 19) return false;
 
     byte[] title = "BitTorrent protocol".getBytes();
