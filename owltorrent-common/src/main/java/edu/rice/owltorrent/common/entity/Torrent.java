@@ -32,5 +32,10 @@ public class Torrent {
   /** The lengths of each file in Torrent. */
   private HashMap<String, Long> fileLengths;
 
+  public byte[] getInfoHash() {
+    // TODO: compute info hash
+    return new byte[20];
+  }
+
   public Torrent() {}
 }
