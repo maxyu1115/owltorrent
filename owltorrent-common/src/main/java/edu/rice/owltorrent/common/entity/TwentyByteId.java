@@ -1,7 +1,7 @@
 package edu.rice.owltorrent.common.entity;
 
 import java.nio.charset.StandardCharsets;
-import lombok.EqualsAndHashCode;
+import java.util.Arrays;
 import lombok.Getter;
 
 /**
@@ -10,15 +10,31 @@ import lombok.Getter;
  *
  * @author Max Yu
  */
-@EqualsAndHashCode
 public class TwentyByteId {
   @Getter private final byte[] bytes;
 
   public TwentyByteId(byte[] bytes) {
     if (bytes.length != 20) {
-      throw new IllegalStateException("Incorrect number of bytes");
+      throw new IllegalStateException("Incorrect number of bytes: " + bytes.length);
     }
     this.bytes = bytes;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    final TwentyByteId that = (TwentyByteId) o;
+    return Arrays.equals(bytes, that.bytes);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(bytes);
   }
 
   @Override

@@ -4,7 +4,6 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.core.Peer;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.HandShakeListener;
-import edu.rice.owltorrent.network.ClientHandler;
 import java.io.File;
 import java.io.IOException;
 import java.net.UnknownHostException;

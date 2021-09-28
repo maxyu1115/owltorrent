@@ -2,7 +2,6 @@ package edu.rice.owltorrent.common.entity;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -14,7 +13,6 @@ import lombok.ToString;
  */
 @RequiredArgsConstructor
 @ToString
-@EqualsAndHashCode
 public class Peer {
   @Getter private final TwentyByteId peerID;
   /** NOTE: address may be null!!! (for peers that connected to us) */

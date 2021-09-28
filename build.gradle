@@ -48,6 +48,8 @@ allprojects {
 
         compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: logVersion
         compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: logVersion
+
+        implementation "com.google.guava:guava:${guavaVersion}"
     }
 
     clean {

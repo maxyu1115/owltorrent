@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
@@ -45,7 +46,8 @@ public class ClientHandler implements Runnable, AutoCloseable {
     }
   }
 
-  private Optional<Peer> verifyHandShake(byte[] handShake) {
+  @VisibleForTesting
+  Optional<Peer> verifyHandShake(byte[] handShake) {
     if (handShake[0] != 19) return Optional.empty();
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
