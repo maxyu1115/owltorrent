@@ -40,7 +40,9 @@ public class ClientHandler implements Runnable, AutoCloseable {
         return;
       }
       // TODO: fill in NetworkToStorage adapter and messageReader.
-      SocketConnector.respondToConnection(peer.get(), this.socket, null);
+      SocketConnector connector =
+          SocketConnector.makeRespondingConnection(peer.get(), this.socket, null);
+      connector.respondToConnection();
     } catch (IOException e) {
       e.printStackTrace();
     }

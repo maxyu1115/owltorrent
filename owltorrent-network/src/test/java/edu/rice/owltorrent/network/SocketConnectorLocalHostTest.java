@@ -42,6 +42,7 @@ public class SocketConnectorLocalHostTest {
   }
 
   // @Test(expected = Test.None.class /* no exception expected */)
+  // Commented out due to incompatible behavior with Github actions
   public void testHandShakeNoException() throws IOException {
     Thread listenerThread = new Thread(listener);
     TwentyByteId peerId = TwentyByteId.fromString("12345678901234567890");
@@ -49,7 +50,9 @@ public class SocketConnectorLocalHostTest {
       listenerThread.start();
 
       Peer host = new Peer(peerId, new InetSocketAddress("127.0.0.1", 8080), torrent);
-      SocketConnector connector = SocketConnector.initiateConnection(host, networkToStorageAdapter);
+      SocketConnector connector =
+          SocketConnector.makeInitialConnection(host, networkToStorageAdapter);
+      connector.initiateConnection();
 
     } catch (Exception e) {
       listenerThread.interrupt();

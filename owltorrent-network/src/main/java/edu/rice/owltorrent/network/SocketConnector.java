@@ -19,6 +19,9 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "general")
 public class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
+
+  private boolean initiated = false;
+
   private DataOutputStream out;
   private DataInputStream in;
 
@@ -48,30 +51,26 @@ public class SocketConnector extends PeerConnector {
     this.peerSocket = peerSocket;
   }
 
-  // TODO: rename
-  public static SocketConnector initiateConnection(
+  public static SocketConnector makeInitialConnection(
       Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
-    SocketConnector connector =
-        new SocketConnector(
-            peer,
-            storageAdapter,
-            new SingleThreadBlockingMessageReader(),
-            new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
-    connector.initiateConnection();
-    return connector;
+    return new SocketConnector(
+        peer,
+        storageAdapter,
+        new SingleThreadBlockingMessageReader(),
+        new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
-  public static SocketConnector respondToConnection(
+  public static SocketConnector makeRespondingConnection(
       Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
-    SocketConnector connector =
-        new SocketConnector(
-            peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
-    connector.respondToConnection();
-    return connector;
+    return new SocketConnector(
+        peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
   protected void initiateConnection() throws IOException {
+    if (initiated) {
+      return;
+    }
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
@@ -91,6 +90,9 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   protected void respondToConnection() throws IOException {
+    if (initiated) {
+      return;
+    }
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
