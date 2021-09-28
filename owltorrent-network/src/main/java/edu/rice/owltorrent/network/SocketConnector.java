@@ -48,6 +48,7 @@ public class SocketConnector extends PeerConnector {
     this.peerSocket = peerSocket;
   }
 
+  // TODO: rename
   public static SocketConnector initiateConnection(
       Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
     SocketConnector connector =
