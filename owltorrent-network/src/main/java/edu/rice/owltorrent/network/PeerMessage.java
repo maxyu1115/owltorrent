@@ -69,7 +69,7 @@ public abstract class PeerMessage {
     }
   }
 
-  private final MessageType messageType;
+  protected final MessageType messageType;
 
   public PeerMessage(MessageType type) {
     this.messageType = type;
