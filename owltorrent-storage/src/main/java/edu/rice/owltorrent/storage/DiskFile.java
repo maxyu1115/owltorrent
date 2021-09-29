@@ -9,13 +9,18 @@ import java.io.RandomAccessFile;
  * @author Josh Represents the local disk version of a file that a client is downloading from the
  *     BitTorrent network.
  */
-public class DownloadFile {
+public class DiskFile {
 
   public static class FileAlreadyExistsException extends Exception {}
 
   public static class FileCouldNotBeCreatedException extends Exception {}
 
-  public static class IllegalByteOffsets extends Exception {}
+  public static class IllegalByteOffsets extends Exception {
+
+    IllegalByteOffsets(String message) {
+      super(message);
+    }
+  }
 
   private long pieceSize;
   private long numBytes;
@@ -32,10 +37,11 @@ public class DownloadFile {
    * @throws FileCouldNotBeCreatedException Thrown if the file we plan to write to could not be
    *     created
    */
-  public DownloadFile(String filePath, long numBytes, long pieceSize)
+  public DiskFile(String filePath, long numBytes, long pieceSize)
       throws FileAlreadyExistsException, FileCouldNotBeCreatedException, IllegalByteOffsets {
     if (numBytes < 0 || pieceSize < 0) {
-      throw new IllegalByteOffsets();
+      throw new IllegalByteOffsets(
+          "Number of bytes (" + numBytes + ") or piece size (" + pieceSize + ") is less than 0.");
     }
 
     this.pieceSize = pieceSize;
@@ -71,24 +77,76 @@ public class DownloadFile {
    * actual bottleneck, especially with an SSD).
    *
    * @param pieceNum The piece number the block of data is from
-   * @param offset The offset in bytes of the block within the piece
+   * @param pieceOffset The offset in bytes of the block within the piece
    * @param blockData The bytes to write to the file
    * @throws IllegalByteOffsets Thrown if the arguments entail writing bytes to an illegal position.
-   * @throws IOException If writing to the file failed
+   * @throws IOException Thrown if writing to the file failed
    */
-  public synchronized void writeBlock(long pieceNum, long offset, byte[] blockData)
+  public synchronized void writeBlock(long pieceNum, long pieceOffset, byte[] blockData)
       throws IllegalByteOffsets, IOException {
-    long startOffset = pieceNum * pieceSize + offset;
-    long endOffset = startOffset + blockData.length;
-    boolean writingPastEndOfFile = endOffset > numBytes;
-    boolean writingPastEndOfPiece = offset + blockData.length > pieceSize;
-    boolean writingBeforeStartOfFile = startOffset < 0;
-    if (writingPastEndOfFile || writingPastEndOfPiece || writingBeforeStartOfFile) {
-      throw new IllegalByteOffsets();
-    }
-
-    file.seek(startOffset);
+    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
+    verifyOffset(fileOffset, pieceOffset, blockData.length);
+    file.seek(fileOffset);
     file.write(blockData);
+  }
+
+  /**
+   * Read a block of bytes from the file. Currently, this method is synchronized so that there is
+   * not competition over the file object; see the writeBlock method for what to do if this becomes
+   * a bottleneck.
+   *
+   * @param pieceNum The piece number the block of data is from
+   * @param pieceOffset The offset in bytes of the block within the piece
+   * @param blockLength The number of bytes to read from the file
+   * @throws IllegalByteOffsets Thrown if the arguments entail reading bytes from an illegal
+   *     position.
+   * @throws IOException Thrown if reading from the file failed
+   */
+  public synchronized byte[] readBlock(long pieceNum, long pieceOffset, int blockLength)
+      throws IllegalByteOffsets, IOException {
+    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
+    verifyOffset(fileOffset, pieceOffset, blockLength);
+    byte[] block = new byte[blockLength];
+    file.seek(fileOffset);
+    file.read(block);
+    return block;
+  }
+
+  /**
+   * Calculates an overall offset within the file given the piece number and the offset within the
+   * piece
+   */
+  private long calculateFileOffset(long pieceNum, long offsetWithinPiece) {
+    return pieceNum * pieceSize + offsetWithinPiece;
+  }
+
+  /** Throws an error if the given offset or blockLength are invalid */
+  private void verifyOffset(long fileOffset, long pieceOffset, int blockLength)
+      throws IllegalByteOffsets {
+    boolean writingPastEndOfFile = fileOffset + blockLength > numBytes;
+    boolean writingPastEndOfPiece = pieceOffset + blockLength > pieceSize;
+    boolean writingBeforeStartOfFile = fileOffset < 0;
+
+    if (writingPastEndOfFile) {
+      throw new IllegalByteOffsets(
+          "File offset "
+              + fileOffset
+              + " and block length "
+              + blockLength
+              + " is past the end of the file.");
+    }
+    if (writingPastEndOfPiece) {
+      throw new IllegalByteOffsets(
+          "Piece offset "
+              + pieceOffset
+              + " and block length "
+              + blockLength
+              + " is past the end of the piece.");
+    }
+    if (writingBeforeStartOfFile) {
+      throw new IllegalByteOffsets(
+          "File offset  " + fileOffset + "is before the start of the file.");
+    }
   }
 
   /**
