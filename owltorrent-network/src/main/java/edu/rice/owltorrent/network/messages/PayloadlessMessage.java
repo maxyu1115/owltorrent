@@ -13,7 +13,7 @@ import lombok.Value;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class PayloadlessMessage extends PeerMessage {
-  public static final int PAYLOADLESS_MESSAGE_SIZE = 5; // 4 bytes for length + 1 byte for type
+  public static final int PAYLOADLESS_MESSAGE_SIZE = 1; // 1 byte for type
 
   public PayloadlessMessage(MessageType type) {
     super(type);
@@ -21,7 +21,7 @@ public class PayloadlessMessage extends PeerMessage {
 
   @Override
   public byte[] toBytes() {
-    ByteBuffer buffer = ByteBuffer.allocate(PAYLOADLESS_MESSAGE_SIZE);
+    ByteBuffer buffer = ByteBuffer.allocate(LENGTH_FIELD_SIZE + PAYLOADLESS_MESSAGE_SIZE);
     buffer.putInt(PAYLOADLESS_MESSAGE_SIZE);
     buffer.put(this.messageType.getByteValue());
     buffer.rewind();

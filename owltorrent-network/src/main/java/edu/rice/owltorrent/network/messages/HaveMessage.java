@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
  */
 public class HaveMessage extends PeerMessage {
 
-  private static final int SIZE = 9;
+  private static final int SIZE = 5; // 1 byte for type + 4 bytes for index
 
   private final int index;
 

@@ -113,7 +113,7 @@ public abstract class PeerMessage {
       case UNCHOKE:
       case INTERESTED:
       case NOT_INTERESTED:
-        return PayloadlessMessage.parse(buffer);
+        return new PayloadlessMessage(type);
       case HAVE:
         return HaveMessage.parse(buffer);
       case BITFIELD:
