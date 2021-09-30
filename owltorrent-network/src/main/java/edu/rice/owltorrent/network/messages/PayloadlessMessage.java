@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network.messages;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.EqualsAndHashCode;
@@ -26,5 +27,13 @@ public class PayloadlessMessage extends PeerMessage {
     buffer.put(this.messageType.getByteValue());
     buffer.rewind();
     return buffer.array();
+  }
+
+  @Override
+  public boolean verify(Torrent torrent) {
+    return this.messageType.equals(MessageType.CHOKE)
+        || this.messageType.equals(MessageType.UNCHOKE)
+        || this.messageType.equals(MessageType.INTERESTED)
+        || this.messageType.equals(MessageType.NOT_INTERESTED);
   }
 }

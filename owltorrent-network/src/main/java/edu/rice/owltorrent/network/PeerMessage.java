@@ -118,12 +118,11 @@ public abstract class PeerMessage {
         return HaveMessage.parse(buffer);
       case BITFIELD:
         return BitfieldMessage.parse(buffer);
-      case REQUEST:
-        return PieceActionMessage.parse(buffer);
       case PIECE:
         return PieceMessage.parse(buffer);
+      case REQUEST:
       case CANCEL:
-        return PieceActionMessage.parse(buffer);
+        return PieceActionMessage.parse(type, buffer);
       default:
         throw new IllegalStateException("Illegal Message Type.");
     }

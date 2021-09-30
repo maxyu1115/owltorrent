@@ -24,8 +24,8 @@ public class PieceActionMessage extends PeerMessage {
   private final int begin;
   private final int length;
 
-  public PieceActionMessage(int index, int begin, int length) {
-    super(MessageType.REQUEST);
+  public PieceActionMessage(MessageType type, int index, int begin, int length) {
+    super(type);
     this.index = index;
     this.begin = begin;
     this.length = length;
@@ -48,14 +48,17 @@ public class PieceActionMessage extends PeerMessage {
   @Override
   public boolean verify(Torrent torrent) {
     // TODO add torrent file piece size
-    return this.index >= 0 && this.index < torrent.getPieceLength();
+    return this.index >= 0
+        && this.index < torrent.getPieceLength()
+        && (this.messageType.equals(MessageType.REQUEST)
+            || this.messageType.equals(MessageType.CANCEL));
     //   && this.begin + this.length <= torrent.getPieceSize(this.piece);
   }
 
-  public static PieceActionMessage parse(ByteBuffer buffer) {
+  public static PieceActionMessage parse(MessageType type, ByteBuffer buffer) {
     int index = buffer.getInt();
     int begin = buffer.getInt();
     int length = buffer.getInt();
-    return new PieceActionMessage(index, begin, length);
+    return new PieceActionMessage(type, index, begin, length);
   }
 }
