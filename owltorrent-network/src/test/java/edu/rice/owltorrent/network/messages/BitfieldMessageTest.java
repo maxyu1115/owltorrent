@@ -1,4 +1,3 @@
-package test.java.edu.rice.owltorrent.network.messages;
+package edu.rice.owltorrent.network.messages;
 
-public class BitfieldMessageTest {
-}
+public class BitfieldMessageTest {}

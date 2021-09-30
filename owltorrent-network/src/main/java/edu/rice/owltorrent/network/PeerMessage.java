@@ -1,9 +1,7 @@
 package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.entity.Torrent;
-import edu.rice.owltorrent.network.messages.KeepAliveMessage;
-import edu.rice.owltorrent.network.messages.PieceMessage;
-import edu.rice.owltorrent.network.messages.RequestMessage;
+import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -11,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import main.java.edu.rice.owltorrent.network.messages.BitfieldMessage;
 
 /**
  * Abstract message class for messages sent between peers.
@@ -116,15 +113,17 @@ public abstract class PeerMessage {
       case UNCHOKE:
       case INTERESTED:
       case NOT_INTERESTED:
+        return PayloadlessMessage.parse(buffer);
       case HAVE:
+        return HaveMessage.parse(buffer);
       case BITFIELD:
         return BitfieldMessage.parse(buffer);
       case REQUEST:
-        return RequestMessage.parse(buffer);
+        return PieceActionMessage.parse(buffer);
       case PIECE:
         return PieceMessage.parse(buffer);
       case CANCEL:
-        throw new IllegalStateException("Also not implemented yet. ");
+        return PieceActionMessage.parse(buffer);
       default:
         throw new IllegalStateException("Illegal Message Type.");
     }

@@ -7,13 +7,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 /**
- * Message sent to request piece from peer
+ * Message sent to request/cancel piece from peer
  *
  * @author Lorraine Lyu
  */
 @Getter
 @EqualsAndHashCode(callSuper = true)
-public class RequestMessage extends PeerMessage {
+public class PieceActionMessage extends PeerMessage {
 
   private static final int SIZE = 13;
 
@@ -24,7 +24,7 @@ public class RequestMessage extends PeerMessage {
   private final int begin;
   private final int length;
 
-  public RequestMessage(int index, int begin, int length) {
+  public PieceActionMessage(int index, int begin, int length) {
     super(MessageType.REQUEST);
     this.index = index;
     this.begin = begin;
@@ -34,8 +34,8 @@ public class RequestMessage extends PeerMessage {
   @Override
   public byte[] toBytes() {
     ByteBuffer buffer = ByteBuffer.allocate(SIZE + LENGTH_FIELD_SIZE);
-    buffer.putInt(RequestMessage.SIZE);
-    buffer.put(PeerMessage.MessageType.REQUEST.getByteValue());
+    buffer.putInt(PieceActionMessage.SIZE);
+    buffer.put(this.messageType.getByteValue());
     buffer.putInt(index);
     buffer.putInt(begin);
     buffer.putInt(length);
@@ -52,10 +52,10 @@ public class RequestMessage extends PeerMessage {
     //   && this.begin + this.length <= torrent.getPieceSize(this.piece);
   }
 
-  public static RequestMessage parse(ByteBuffer buffer) {
+  public static PieceActionMessage parse(ByteBuffer buffer) {
     int index = buffer.getInt();
     int begin = buffer.getInt();
     int length = buffer.getInt();
-    return new RequestMessage(index, begin, length);
+    return new PieceActionMessage(index, begin, length);
   }
 }

@@ -3,9 +3,11 @@ package edu.rice.owltorrent.network.messages;
 import java.io.IOException;
 import org.junit.Test;
 
-public class PayloadlessMessageTest {
+/** @author yuchengu */
+public class HaveMessageTest {
+
   @Test
   public void bytesAndBack() throws IOException {
-    GenericMessageTestHelper.binaryAndBackWorks(new PieceMessage(47, 12, new byte[] {1, 6, 42, 0}));
+    GenericMessageTestHelper.binaryAndBackWorks(new HaveMessage(10));
   }
 }

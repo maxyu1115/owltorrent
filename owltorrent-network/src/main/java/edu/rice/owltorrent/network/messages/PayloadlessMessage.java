@@ -1,4 +1,4 @@
-package main.java.edu.rice.owltorrent.network.messages;
+package edu.rice.owltorrent.network.messages;
 
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
