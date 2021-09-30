@@ -7,7 +7,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import lombok.extern.log4j.Log4j2;
@@ -20,6 +19,9 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "general")
 public class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
+
+  private boolean initiated = false;
+
   private DataOutputStream out;
   private DataInputStream in;
 
@@ -49,41 +51,38 @@ public class SocketConnector extends PeerConnector {
     this.peerSocket = peerSocket;
   }
 
-  public static SocketConnector initiateConnection(
+  public static SocketConnector makeInitialConnection(
       Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
-    SocketConnector connector =
-        new SocketConnector(
-            peer,
-            storageAdapter,
-            new SingleThreadBlockingMessageReader(),
-            new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
-    connector.initiateConnection();
-    return connector;
+    return new SocketConnector(
+        peer,
+        storageAdapter,
+        new SingleThreadBlockingMessageReader(),
+        new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
-  public static SocketConnector respondToConnection(
+  public static SocketConnector makeRespondingConnection(
       Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
-    SocketConnector connector =
-        new SocketConnector(
-            peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
-    connector.respondToConnection();
-    return connector;
+    return new SocketConnector(
+        peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
   protected void initiateConnection() throws IOException {
+    if (initiated) {
+      return;
+    }
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
-    this.out.write(constructHandShakeMessage(this.peer));
+    this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
 
     // read and confirm handshake from peer
     byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
     int readByteLength = in.read(incomingHandshakeBuffer);
     if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
-        || !confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+        || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
-          String.format("Invalid handshake from peer id=%s", this.peer.getPeerID().getId()));
+          String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
     new Thread(listenForInput).start();
@@ -91,10 +90,13 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   protected void respondToConnection() throws IOException {
+    if (initiated) {
+      return;
+    }
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
-    this.out.write(constructHandShakeMessage(this.peer));
+    this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
     // listen for input with busy waiting
     new Thread(listenForInput).start();
   }
@@ -102,35 +104,6 @@ public class SocketConnector extends PeerConnector {
   @Override
   public void writeMessage(PeerMessage message) throws IOException {
     out.write(message.toBytes());
-  }
-
-  private static byte[] constructHandShakeMessage(Peer peer) {
-    ByteBuffer message = ByteBuffer.allocate(68);
-    message.put((byte) 19);
-    byte[] pstr = new String("BitTorrent protocol").getBytes();
-    message.put(pstr);
-    message.put(new byte[8]);
-    message.put(peer.getTorrent().getInfoHash());
-    message.put(peer.getPeerID().getBytes());
-    return message.array();
-  }
-
-  private static boolean confirmHandShake(byte[] buffer, Peer peer) {
-    if (buffer[0] != 19) return false;
-
-    byte[] title = "BitTorrent protocol".getBytes();
-    for (int i = 1; i < 20; i++) if (title[i - 1] != buffer[i]) return false;
-    byte[] infoHash = peer.getTorrent().getInfoHash();
-    for (int i = 28; i < 48; i++) {
-      if (infoHash[i - 28] != buffer[i]) return false;
-    }
-
-    byte[] peerId = peer.getPeerID().getBytes();
-    for (int i = 48; i < 68; i++) {
-      if (peerId[i - 48] != buffer[i]) return false;
-    }
-
-    return true;
   }
 
   @Override

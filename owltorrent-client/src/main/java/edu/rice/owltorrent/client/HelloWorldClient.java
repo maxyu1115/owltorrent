@@ -3,9 +3,9 @@ package edu.rice.owltorrent.client;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.core.Peer;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import edu.rice.owltorrent.network.HandShakeListener;
+import java.io.File;
+import java.io.IOException;
 import java.net.UnknownHostException;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -21,33 +21,8 @@ public class HelloWorldClient {
     this.torrentFileLocation = torrentFileLocation;
   }
 
-  private void listenToPort(int portNumber) {
-    try (ServerSocket serverSocket = new ServerSocket(portNumber);
-        Socket clientSocket = serverSocket.accept();
-        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-        BufferedReader in =
-            new BufferedReader(new InputStreamReader(clientSocket.getInputStream())); ) {
-      String inputLine, outputLine;
-
-      // Initiate conversation with client
-      while ((inputLine = in.readLine()) != null) {
-        //  outputLine = kkp.processInput(inputLine);
-        //  out.println(outputLine);
-        //  if (outputLine.equals("Bye."))
-        //    break;
-        log.info(inputLine);
-      }
-    } catch (IOException e) {
-      log.error(
-          "Exception caught when trying to listen on port "
-              + portNumber
-              + " or listening for a connection");
-      log.error(e.getMessage());
-    }
-  }
-
   private void talkToPort(String hostName, int portNumber) {
-    try (Peer peer = new Peer(hostName, portNumber);
+    try (Peer peer = new Peer(hostName, portNumber)
     //  PrintWriter out = new PrintWriter(peer.getOutputStream(), true);
     //  BufferedReader in = new BufferedReader(
     //      new InputStreamReader(peer.getInputStream()));
@@ -82,7 +57,7 @@ public class HelloWorldClient {
 
   public void run() throws IOException {
     if (torrentFileLocation == null) {
-      listenToPort(8080);
+      new HandShakeListener(null, 8080).run();
     } else {
       File file = new File(torrentFileLocation);
       Torrent torrent = parser.parse(file);

@@ -73,7 +73,8 @@ public class TorrentParser {
       fileLengths.put(name, (long) infoDict.get(lengthField));
     }
 
-    return new Torrent(announceURL, name, pieceLength, pieces, fileLengths);
+    // TODO: fix info hash
+    return new Torrent(announceURL, name, pieceLength, pieces, fileLengths, null);
   }
 
   /**
