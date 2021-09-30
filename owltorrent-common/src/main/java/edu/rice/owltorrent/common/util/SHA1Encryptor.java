@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.core.serialization;
+package edu.rice.owltorrent.common.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

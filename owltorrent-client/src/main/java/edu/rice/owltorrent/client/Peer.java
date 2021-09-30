@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.core;
+package edu.rice.owltorrent.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -6,6 +6,7 @@ import java.net.Socket;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2(topic = "general")
+@Deprecated
 public class Peer extends Socket {
 
   private final InetSocketAddress address;

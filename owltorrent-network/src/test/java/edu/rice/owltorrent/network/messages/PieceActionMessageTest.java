@@ -29,13 +29,13 @@ public class PieceActionMessageTest {
   public void testVerifyCorrectType() {
     assertTrue(
         new PieceActionMessage(PeerMessage.MessageType.REQUEST, 0, 12, 99)
-            .verify(new Torrent("", "", 10, new ArrayList<>(), new HashMap<>())));
+            .verify(new Torrent("", "", 10, new ArrayList<>(), new HashMap<>(), null)));
   }
 
   @Test
   public void testVerifyInCorrectType() {
     assertFalse(
         new PieceActionMessage(PeerMessage.MessageType.CHOKE, 0, 12, 99)
-            .verify(new Torrent("", "", 10, new ArrayList<>(), new HashMap<>())));
+            .verify(new Torrent("", "", 10, new ArrayList<>(), new HashMap<>(), null)));
   }
 }
