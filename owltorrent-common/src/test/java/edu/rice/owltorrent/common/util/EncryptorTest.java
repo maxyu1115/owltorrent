@@ -1,4 +1,4 @@
-package edu.rice.owltorrent.core.serialization;
+package edu.rice.owltorrent.common.util;
 
 import static org.junit.Assert.*;
 
