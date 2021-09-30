@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import main.java.edu.rice.owltorrent.network.messages.BitfieldMessage;
 
 /**
  * Abstract message class for messages sent between peers.
@@ -117,7 +118,7 @@ public abstract class PeerMessage {
       case NOT_INTERESTED:
       case HAVE:
       case BITFIELD:
-        throw new IllegalStateException("Not implemented yet. ");
+        return BitfieldMessage.parse(buffer);
       case REQUEST:
         return RequestMessage.parse(buffer);
       case PIECE:

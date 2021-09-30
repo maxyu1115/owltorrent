@@ -48,6 +48,10 @@ allprojects {
 
         compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: logVersion
         compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: logVersion
+        implementation 'junit:junit:4.12'
+        implementation 'org.junit.jupiter:junit-jupiter'
+        implementation 'junit:junit:4.12'
+        implementation 'junit:junit:4.12'
     }
 
     clean {
