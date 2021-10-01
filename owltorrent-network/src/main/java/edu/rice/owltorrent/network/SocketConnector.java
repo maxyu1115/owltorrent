@@ -1,6 +1,6 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
 import java.io.DataInputStream;
@@ -43,16 +43,13 @@ public class SocketConnector extends PeerConnector {
       };
 
   private SocketConnector(
-      Peer peer,
-      NetworkToStorageAdapter storageAdapter,
-      MessageReader messageReader,
-      Socket peerSocket) {
+      Peer peer, StorageAdapter storageAdapter, MessageReader messageReader, Socket peerSocket) {
     super(peer, storageAdapter, messageReader);
     this.peerSocket = peerSocket;
   }
 
-  public static SocketConnector makeInitialConnection(
-      Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
+  public static SocketConnector makeInitialConnection(Peer peer, StorageAdapter storageAdapter)
+      throws IOException {
     return new SocketConnector(
         peer,
         storageAdapter,
@@ -61,7 +58,7 @@ public class SocketConnector extends PeerConnector {
   }
 
   public static SocketConnector makeRespondingConnection(
-      Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, Socket peerSocket, StorageAdapter storageAdapter) throws IOException {
     return new SocketConnector(
         peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }

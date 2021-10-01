@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.common.entity;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Represent the FilePiece class.
@@ -8,21 +9,9 @@ import lombok.Data;
  * @author yuchengu
  */
 @Data
+@RequiredArgsConstructor
 public class FilePiece {
-  private final int index;
-  private final long length;
-  private final byte[] hash;
-
-  /**
-   * Initialize a FilePiece
-   *
-   * @param index The piece index in the torrent.
-   * @param length The piece's length,in bytes
-   * @param hash The piece's 20-byte SHA1 hash.
-   */
-  public FilePiece(int index, long length, byte[] hash) {
-    this.index = index;
-    this.length = length;
-    this.hash = hash;
-  }
+  private final int pieceIndex;
+  private final long offset;
+  private final byte[] data;
 }

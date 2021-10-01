@@ -23,6 +23,8 @@ public class PieceMessage extends PeerMessage {
   int begin;
   byte[] piece;
 
+  // TODO: Make constructor private and add a create factory that also takes in the torrent and
+  // performs verification.
   public PieceMessage(int index, int begin, byte[] piece) {
     super(MessageType.PIECE);
     this.index = index;
@@ -31,7 +33,6 @@ public class PieceMessage extends PeerMessage {
   }
 
   public FilePiece getFilePiece() {
-    // FIXME: why is this hash in filePiece? no data?
     return new FilePiece(index, begin, piece);
   }
 
