@@ -22,6 +22,8 @@ public class SocketConnector extends PeerConnector {
 
   private boolean initiated = false;
 
+  private Thread listenerThread;
+
   private DataOutputStream out;
   private DataInputStream in;
 
@@ -85,7 +87,9 @@ public class SocketConnector extends PeerConnector {
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
-    new Thread(listenForInput).start();
+    listenerThread = new Thread(listenForInput);
+    listenerThread.getState();
+    listenerThread.start();
   }
 
   @Override
@@ -98,7 +102,9 @@ public class SocketConnector extends PeerConnector {
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
     // listen for input with busy waiting
-    new Thread(listenForInput).start();
+    listenerThread = new Thread(listenForInput);
+    listenerThread.getState();
+    listenerThread.start();
   }
 
   @Override
@@ -108,6 +114,9 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   public void close() throws Exception {
+    if (listenerThread != null) {
+      listenerThread.interrupt();
+    }
     peerSocket.close();
   }
 }
