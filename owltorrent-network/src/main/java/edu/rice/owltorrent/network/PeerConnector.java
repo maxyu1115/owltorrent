@@ -71,7 +71,7 @@ public abstract class PeerConnector implements AutoCloseable {
       case REQUEST:
         break;
       case PIECE:
-        storageAdapter.write(((PieceMessage) message).getFilePiece());
+        storageAdapter.write(peer.getTorrent(), ((PieceMessage) message).getFileBlock());
         break;
       case CANCEL:
       default:
