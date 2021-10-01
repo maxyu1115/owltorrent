@@ -3,4 +3,6 @@ plugins {
 
 dependencies {
     implementation project(":owltorrent-common")
+
+    compile group: 'org.apache.httpcomponents' , name: 'httpclient' , version: httpVersion
 }
