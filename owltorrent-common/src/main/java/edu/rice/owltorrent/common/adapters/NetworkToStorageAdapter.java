@@ -1,6 +1,8 @@
 package edu.rice.owltorrent.common.adapters;
 
-import edu.rice.owltorrent.common.entity.FilePiece;
+import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
+import edu.rice.owltorrent.common.entity.Torrent;
 
 /**
  * Adapter for Network package to talk to Storage package.
@@ -8,7 +10,7 @@ import edu.rice.owltorrent.common.entity.FilePiece;
  * @author Max Yu
  */
 public interface NetworkToStorageAdapter {
-  FilePiece read();
+  FileBlock read(FileBlockInfo fileBlockInfo);
 
-  void write(FilePiece filePiece);
+  void write(Torrent torrent, FileBlock fileBlock);
 }
