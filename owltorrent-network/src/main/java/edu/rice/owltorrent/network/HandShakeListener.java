@@ -1,6 +1,5 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.interfaces.TorrentRepository;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;

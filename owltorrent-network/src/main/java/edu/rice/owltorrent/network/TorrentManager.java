@@ -5,6 +5,7 @@ import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.AtomicHashableInteger;
+import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
 import java.util.*;
@@ -31,6 +32,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final Set<Integer> completedPieces;
   private final Map<Integer, PieceStatus> uncompletedPieces;
+  private final Set<Integer> notStartedPieces;
 
   private final int totalPieces;
 
@@ -38,27 +40,31 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final NetworkToStorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  public TorrentManager(Torrent file, List<Peer> peerList, NetworkToStorageAdapter adapter) {
+  public TorrentManager(Torrent file, NetworkToStorageAdapter adapter) {
     this.torrent = file;
     this.networkStorageAdapter = adapter;
     this.completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
     this.uncompletedPieces = new ConcurrentHashMap<>();
+    this.notStartedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
     this.totalPieces = torrent.getPieces().size();
 
     for (int idx = 0; idx < totalPieces; idx++) {
-      // TODO: fix int casting, and also add handling when piece length isn't a multiple of default
-      //  block num
-      this.uncompletedPieces.put(
-          idx,
-          new PieceStatus(
-              idx, DEFAULT_BLOCK_NUM, (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM));
+      this.notStartedPieces.add(idx);
     }
 
     this.peers = new ConcurrentHashMap<>();
 
+    // initPeers();
+  }
+
+  private void initPeers(List<Peer> peerList) {
     for (Peer peer : peerList) {
       try {
-        addPeer(SocketConnector.makeInitialConnection(peer, networkStorageAdapter), peer);
+        PeerConnector connector =
+            SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+        addPeer(connector, peer);
+        // TODO: revise
+        connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
       } catch (IOException e) {
         log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
       }
@@ -66,7 +72,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   public void startDownloadingAsynchronously() {
-    // Start thread that calls checkStatus once every x seconds
     // TODO: make thread pool scheduler
     new Thread(this).start();
   }
@@ -87,10 +92,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
       pair.getValue().close();
     }
   }
-
-  // Can come up with better names, basically figures out what messages need to be sent to what
-  // peers
-  private void checkStatus() {}
 
   private void requestPieceFromPeer(Peer peer, int pieceNum, int blockNum, int blockSize) {
     PeerConnector peerConnector = peers.get(peer);
@@ -129,13 +130,26 @@ public class TorrentManager implements Runnable, AutoCloseable {
       // Thread.sleep(1000);
     }
   }
-  // TODO: Not compatable with current setup
-  // private sendPieceToPeer(PeerConnector peer, int pieceNum);
-  // private sendHaveMessageToPeer(PeerConnector peer);
 
-  public boolean reportPieceInProgress(FileBlockInfo blockInfo) {
-    PieceStatus status = uncompletedPieces.get(blockInfo.getIndex());
-    assert status != null;
+  /**
+   * Reports the progress of a block
+   *
+   * @param blockInfo block info
+   * @return false if another thread already started to download that block or the block size is not
+   *     expected
+   */
+  public boolean reportAndValidatePieceInProgress(FileBlockInfo blockInfo) {
+    // TODO: fix int casting, and also add handling when piece length isn't a multiple of default
+    //  block num
+    PieceStatus status =
+        uncompletedPieces.computeIfAbsent(
+            blockInfo.getIndex(),
+            i ->
+                new PieceStatus(
+                    i, DEFAULT_BLOCK_NUM, (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM));
+    if (status.blockLength != blockInfo.getLength()) {
+      return false;
+    }
 
     return status
         .status

@@ -46,26 +46,30 @@ public class SocketConnector extends PeerConnector {
 
   private SocketConnector(
       Peer peer,
+      TorrentManager manager,
       NetworkToStorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, storageAdapter, messageReader);
+    super(peer, manager, storageAdapter, messageReader);
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
-      Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, NetworkToStorageAdapter storageAdapter)
+      throws IOException {
     return new SocketConnector(
         peer,
+        manager,
         storageAdapter,
         new SingleThreadBlockingMessageReader(),
         new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
   public static SocketConnector makeRespondingConnection(
-      Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, Socket peerSocket, NetworkToStorageAdapter storageAdapter)
+      throws IOException {
     return new SocketConnector(
-        peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
+        peer, manager, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
@@ -88,7 +92,6 @@ public class SocketConnector extends PeerConnector {
     }
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
-    listenerThread.getState();
     listenerThread.start();
   }
 
@@ -103,7 +106,6 @@ public class SocketConnector extends PeerConnector {
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
-    listenerThread.getState();
     listenerThread.start();
   }
 
