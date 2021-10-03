@@ -2,15 +2,16 @@ package edu.rice.owltorrent.network;
 
 import com.dampcake.bencode.BencodeInputStream;
 import com.google.common.io.ByteStreams;
-import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import lombok.NonNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Arrays;
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PeerLocator {
@@ -23,8 +24,11 @@ public class PeerLocator {
     public static final String uploaded = "0";
     public static final String compact = "1";
 
-    public List<Peer> locatePeers(Torrent torrent) {
+    public List<InetSocketAddress> locatePeers(@NonNull Torrent torrent) {
+        List<InetSocketAddress> addresses = new ArrayList<>();
+
         try {
+            // Build request
             StringBuilder builder = new StringBuilder("https://torrent.ubuntu.com/announce?");
             builder.append("info_hash=" + infoHash + "&");
             builder.append("peer_id=" + peerID + "&");
@@ -34,39 +38,37 @@ public class PeerLocator {
             builder.append("uploaded=" + uploaded + "&");
             builder.append("compact=" + compact);
 
+            // Set up connection with tracker
             URL url = new URL(builder.toString());
             URLConnection connection = url.openConnection();
 
+            // Read bytes from tracker
             InputStream is = connection.getInputStream();
             byte[] bytes = ByteStreams.toByteArray(is);
 
-            // Decode response using base64 decoder
-//            byte[] decodedBytes = Base64.getMimeDecoder().decode(bytes);
-//            System.out.println(Arrays.toString(decodedBytes));
-//            int len=0;
-//            for (int i=0; i<decodedBytes.length; i++) {
-//                len++;
-//                System.out.println(decodedBytes[i]);
-//            }
-//            String decodedString = new String(decodedBytes);
-//            System.out.println("decoded string: " + decodedString);
-
-
-            // Bencode response first
+            // Bencode tracker response
             ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
             BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
             var dict = bencodeInputStream.readDictionary();
-            System.out.println(dict.keySet());
 
-            // Decode peers field using base64 decoder
+            // Extract peers from bencoded dictionary.
             String peers = (String) dict.get("peers");
-            byte[] decodedBytes = Base64.getMimeDecoder().decode(peers.getBytes());
-            System.out.println(peers);
-            System.out.println(Arrays.toString(decodedBytes));
+            byte[] peersAsBytes = peers.getBytes();
+
+            // Iterate peers and store IP + port for each peer
+            for (int i = 0; i < peersAsBytes.length-6; i+=6) {
+                byte[] ipAsBytes = {peersAsBytes[i], peersAsBytes[i+1], peersAsBytes[i+2], peersAsBytes[i+3]};
+                InetAddress inetAddress = InetAddress.getByAddress(ipAsBytes);
+
+                int peerPort = ((peersAsBytes[i+5] & 0xFF) << 8) | (peersAsBytes[i+6] & 0xFF);
+
+                InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
+                addresses.add(inetSocketAddress);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return null;
+        return addresses;
     }
 }

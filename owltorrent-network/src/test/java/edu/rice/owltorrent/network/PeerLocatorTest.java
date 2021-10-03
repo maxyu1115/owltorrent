@@ -3,8 +3,6 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.entity.Torrent;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 public class PeerLocatorTest {
 
     @Test
@@ -13,4 +11,11 @@ public class PeerLocatorTest {
         PeerLocator peerLocator = new PeerLocator();
         peerLocator.locatePeers(torrent);
     }
+
+    @Test(expected = NullPointerException.class)
+    public void locatePeers_nullInput() {
+        PeerLocator peerLocator = new PeerLocator();
+        peerLocator.locatePeers(null);
+    }
+
 }
