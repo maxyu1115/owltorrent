@@ -2,13 +2,12 @@ package edu.rice.owltorrent.core.serialization;
 
 import com.dampcake.bencode.BencodeInputStream;
 import edu.rice.owltorrent.common.entity.Torrent;
-import lombok.NonNull;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import lombok.NonNull;
 
 /**
  * Torrent file parser.

@@ -1,10 +1,9 @@
 package edu.rice.owltorrent.common.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
 import java.util.HashMap;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 /**
  * Represent the Torrent class after parsing.
@@ -44,7 +43,7 @@ public class Torrent {
   private HashMap<String, Long> fileLengths;
 
   private TwentyByteId infoHash;
-//  private String infoHash;
+  //  private String infoHash;
 
   public Torrent() {}
 }
