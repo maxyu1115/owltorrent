@@ -29,8 +29,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private static final int BLOCK_IN_PROGRESS = 1;
   private static final int BLOCK_DONE = 2;
 
-  private final Set<Integer> completedPieces;
-  private final Map<Integer, PieceStatus> uncompletedPieces;
+  private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
   private final Queue<Integer> notStartedPieces;
 
   private final int totalPieces;
@@ -42,8 +42,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public TorrentManager(Torrent file, NetworkToStorageAdapter adapter) {
     this.torrent = file;
     this.networkStorageAdapter = adapter;
-    this.completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    this.uncompletedPieces = new ConcurrentHashMap<>();
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
     this.totalPieces = torrent.getPieces().size();
 
@@ -118,6 +116,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Override
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
+      // TODO: here we're assuming all our peers are seeders
       // Request a missing piece from each Peer
       List<Peer> connections = new ArrayList<>(peers.keySet());
       Collections.shuffle(connections);

@@ -17,6 +17,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
   private DataOutputStream out;
   private DataInputStream in;
 
+  // TODO: BAD PRACTICE!!! refactor eventually
   private TorrentManager torrentManager;
 
   ClientHandler(TorrentRepository torrentRepository, Socket socket) {
