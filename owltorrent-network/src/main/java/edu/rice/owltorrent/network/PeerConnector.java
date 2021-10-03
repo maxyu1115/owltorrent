@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
@@ -17,6 +18,9 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "general")
 public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
+  // TODO: bad practice, should eventually refactor
+  protected final TorrentManager manager;
+
   protected final NetworkToStorageAdapter storageAdapter;
 
   protected final MessageReader messageReader;
@@ -71,7 +75,11 @@ public abstract class PeerConnector implements AutoCloseable {
       case REQUEST:
         break;
       case PIECE:
-        storageAdapter.write(((PieceMessage) message).getFilePiece());
+        FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
+        if (manager.validateAndReportBlockInProgress(fileBlock)) {
+          storageAdapter.write(peer.getTorrent(), fileBlock);
+          manager.reportBlockCompletion(fileBlock);
+        }
         break;
       case CANCEL:
       default:

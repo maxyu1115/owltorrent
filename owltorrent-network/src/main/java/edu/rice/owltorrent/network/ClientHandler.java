@@ -2,9 +2,7 @@ package edu.rice.owltorrent.network;
 
 import com.google.common.annotations.VisibleForTesting;
 import edu.rice.owltorrent.common.entity.Peer;
-import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import edu.rice.owltorrent.common.interfaces.TorrentRepository;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -18,6 +16,9 @@ public class ClientHandler implements Runnable, AutoCloseable {
   private final Socket socket;
   private DataOutputStream out;
   private DataInputStream in;
+
+  // TODO: BAD PRACTICE!!! refactor eventually
+  private TorrentManager torrentManager;
 
   ClientHandler(TorrentRepository torrentRepository, Socket socket) {
     this.torrentRepository = torrentRepository;
@@ -41,7 +42,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
       }
       // TODO: fill in NetworkToStorage adapter and messageReader.
       SocketConnector connector =
-          SocketConnector.makeRespondingConnection(peer.get(), this.socket, null);
+          SocketConnector.makeRespondingConnection(peer.get(), null, this.socket, null);
       connector.respondToConnection();
     } catch (IOException e) {
       e.printStackTrace();
@@ -57,14 +58,17 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
     byte[] infoHash = new byte[20];
     System.arraycopy(handShake, 28, infoHash, 0, 20);
-    Optional<Torrent> torrent = torrentRepository.retrieveTorrent(new TwentyByteId(infoHash));
-    if (torrent.isEmpty()) {
+    Optional<TorrentManager> torrentManager =
+        torrentRepository.retrieveTorrent(new TwentyByteId(infoHash));
+    if (torrentManager.isEmpty()) {
       return Optional.empty();
     }
 
+    this.torrentManager = torrentManager.get();
+
     byte[] peerId = new byte[20];
     System.arraycopy(handShake, 48, peerId, 0, 20);
-    Peer peer = new Peer(new TwentyByteId(peerId), null, torrent.get());
+    Peer peer = new Peer(new TwentyByteId(peerId), null, this.torrentManager.getTorrent());
 
     return Optional.of(peer);
   }
