@@ -14,6 +14,11 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tracker connector to fetch peers.
+ *
+ * @author bhaveshshah
+ */
 public class PeerLocator {
 
     public static final String infoHash = "%32%31%0b%4d%b8%4d%e5%c0%23%bf%cb%9f%40%64%8d%8c%9e%7c%a1%6e"; // TODO: retrieve from torrent

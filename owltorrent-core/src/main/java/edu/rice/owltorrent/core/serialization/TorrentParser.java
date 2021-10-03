@@ -1,9 +1,7 @@
 package edu.rice.owltorrent.core.serialization;
 
-import com.dampcake.bencode.Bencode;
 import com.dampcake.bencode.BencodeInputStream;
 import edu.rice.owltorrent.common.entity.Torrent;
-import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import lombok.NonNull;
 
 import java.io.ByteArrayInputStream;
@@ -76,33 +74,6 @@ public class TorrentParser {
       fileLengths.put(name, (long) infoDict.get(lengthField));
     }
 
-    System.out.println(dict.keySet());
-    System.out.println(infoDict.keySet());
-    System.out.println(announceURL);
-
-    Bencode bencode = new Bencode();
-    byte[] infoHashBytes = bencode.encode(infoDict);
-    byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashBytes);
-
-    System.out.println("encrypted bytes: " + encryptedInfoHashBytes);
-    System.out.println("bytes -> hex: " + hexEncode(encryptedInfoHashBytes));
-    System.out.println("bytes -> urlencode: " + byteUrlEncode(encryptedInfoHashBytes));
-
-    // TODO: fix info hash
-    String infoHash = byteUrlEncode(encryptedInfoHashBytes);
-
-    try {
-      String str = hexEncodeURL("8835f0ca640ca9405f32c7d00c140cc16fcfa078");
-      System.out.println("hexed hash -> urlencode: " + str);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
-    System.out.println("---");
-
-//    System.out.println(name);
-//    System.out.println(pieceLength);
-
     return new Torrent(announceURL, name, pieceLength, pieces, fileLengths, null);
   }
 
@@ -147,54 +118,4 @@ public class TorrentParser {
 
     return fileLengths;
   }
-
-
-  private static String byteUrlEncode(byte[] bs) {
-    StringBuffer sb = new StringBuffer(bs.length * 3);
-    for (int i = 0; i < bs.length; i++) {
-      int c = bs[i] & 0xFF;
-      sb.append('%');
-      if (c < 16) {
-        sb.append('0');
-      }
-      sb.append(Integer.toHexString(c));
-    }
-    return sb.toString();
-  }
-
-  public static String hexEncodeURL(String hexString) throws Exception {
-    if(hexString==null || hexString.isEmpty()){
-      return "";
-    }
-    if(hexString.length()%2 != 0){
-      throw new Exception("String is not hex, length NOT divisible by 2: "+hexString);
-    }
-    int len = hexString.length();
-    char[] output = new char[len+len/2];
-    int i=0;
-    int j=0;
-    while(i<len){
-      output[j++]='%';
-      output[j++]=hexString.charAt(i++);
-      output[j++]=hexString.charAt(i++);
-    }
-    return new String(output);
-  }
-
-  static final char[] CHAR_FOR_BYTE = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-  /** Encode byte data as a hex string... hex chars are UPPERCASE*/
-  public static String hexEncode(byte[] data){
-    if(data == null || data.length==0){
-      return "";
-    }
-    char[] store = new char[data.length*2];
-    for(int i=0; i<data.length; i++){
-      final int val = (data[i]&0xFF);
-      final int charLoc=i<<1;
-      store[charLoc]=CHAR_FOR_BYTE[val>>>4];
-      store[charLoc+1]=CHAR_FOR_BYTE[val&0x0F];
-    }
-    return new String(store);
-  }
-
 }
