@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import edu.rice.owltorrent.common.interfaces.TorrentRepository;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -30,6 +29,7 @@ public class ClientHandlerTest {
 
   @Mock private TorrentRepository torrentRepository;
   @Mock private Socket socket;
+  @Mock private TorrentManager torrentManager;
 
   private Torrent torrent = new Torrent();
 
@@ -37,6 +37,7 @@ public class ClientHandlerTest {
 
   @Before
   public void init() {
+    when(torrentManager.getTorrent()).thenReturn(torrent);
     clientHandler = new ClientHandler(torrentRepository, socket);
   }
 
@@ -85,7 +86,7 @@ public class ClientHandlerTest {
 
     System.arraycopy(peerId.getBytes(), 0, handshake, 48, 20);
 
-    when(torrentRepository.retrieveTorrent(eq(infoHash))).thenReturn(Optional.of(torrent));
+    when(torrentRepository.retrieveTorrent(eq(infoHash))).thenReturn(Optional.of(torrentManager));
 
     Peer foundPeer = clientHandler.verifyHandShake(handshake).get();
 

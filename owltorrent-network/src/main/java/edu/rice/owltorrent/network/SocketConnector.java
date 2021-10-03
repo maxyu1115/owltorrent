@@ -22,6 +22,8 @@ public class SocketConnector extends PeerConnector {
 
   private boolean initiated = false;
 
+  private Thread listenerThread;
+
   private DataOutputStream out;
   private DataInputStream in;
 
@@ -44,26 +46,30 @@ public class SocketConnector extends PeerConnector {
 
   private SocketConnector(
       Peer peer,
+      TorrentManager manager,
       NetworkToStorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, storageAdapter, messageReader);
+    super(peer, manager, storageAdapter, messageReader);
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
-      Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, NetworkToStorageAdapter storageAdapter)
+      throws IOException {
     return new SocketConnector(
         peer,
+        manager,
         storageAdapter,
         new SingleThreadBlockingMessageReader(),
         new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
   public static SocketConnector makeRespondingConnection(
-      Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, Socket peerSocket, NetworkToStorageAdapter storageAdapter)
+      throws IOException {
     return new SocketConnector(
-        peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
+        peer, manager, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
@@ -85,7 +91,8 @@ public class SocketConnector extends PeerConnector {
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
-    new Thread(listenForInput).start();
+    listenerThread = new Thread(listenForInput);
+    listenerThread.start();
   }
 
   @Override
@@ -98,7 +105,8 @@ public class SocketConnector extends PeerConnector {
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
     // listen for input with busy waiting
-    new Thread(listenForInput).start();
+    listenerThread = new Thread(listenForInput);
+    listenerThread.start();
   }
 
   @Override
@@ -108,6 +116,9 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   public void close() throws Exception {
+    if (listenerThread != null) {
+      listenerThread.interrupt();
+    }
     peerSocket.close();
   }
 }
