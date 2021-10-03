@@ -33,8 +33,8 @@ public class Torrent {
   /** The lengths of each file in Torrent. */
   private HashMap<String, Long> fileLengths;
 
-//  private TwentyByteId infoHash;
-  private String infoHash;
+  private TwentyByteId infoHash;
+//  private String infoHash;
 
   public Torrent() {}
 }

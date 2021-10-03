@@ -103,7 +103,7 @@ public class TorrentParser {
 //    System.out.println(name);
 //    System.out.println(pieceLength);
 
-    return new Torrent(announceURL, name, pieceLength, pieces, fileLengths, infoHash);
+    return new Torrent(announceURL, name, pieceLength, pieces, fileLengths, null);
   }
 
   /**

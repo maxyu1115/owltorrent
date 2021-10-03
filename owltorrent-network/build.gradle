@@ -5,4 +5,5 @@ dependencies {
     implementation project(":owltorrent-common")
 
     compile group: 'org.apache.httpcomponents' , name: 'httpclient' , version: httpVersion
+    compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
 }
