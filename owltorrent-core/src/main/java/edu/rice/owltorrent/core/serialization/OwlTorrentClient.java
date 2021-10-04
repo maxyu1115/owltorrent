@@ -16,10 +16,15 @@ public class OwlTorrentClient {
   }
 
   public ProgressMeter downloadFile(String torrentFileName)
-      throws IOException, Exceptions.FileAlreadyExistsException, Exceptions.IllegalByteOffsets,
-          Exceptions.FileCouldNotBeCreatedException {
+      throws Exceptions.FileAlreadyExistsException, Exceptions.IllegalByteOffsets,
+          Exceptions.FileCouldNotBeCreatedException, Exceptions.ParsingTorrentFileFailedException {
     File torrentFile = new File(torrentFileName);
-    Torrent torrent = TorrentParser.parse(torrentFile);
+    Torrent torrent;
+    try {
+      torrent = TorrentParser.parse(torrentFile);
+    } catch (IOException e) {
+      throw new Exceptions.ParsingTorrentFileFailedException;
+    }
     StorageAdapter adapter = createStorageAdapter(torrent);
     TorrentManager manager = new TorrentManager(torrent, adapter);
     manager.startDownloadingAsynchronously();

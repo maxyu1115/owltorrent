@@ -12,4 +12,6 @@ public class Exceptions {
       super(message);
     }
   }
+
+  public static class ParsingTorrentFileFailedException extends Exception {}
 }

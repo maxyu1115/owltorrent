@@ -7,4 +7,15 @@ dependencies {
     compile project(":owltorrent-storage")
 
     compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
+    compile 'commons-cli:commons-cli:1.4'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'edu.rice.owltorrent.client.HelloWorldClient'
+    }
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
