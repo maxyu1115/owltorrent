@@ -7,12 +7,11 @@ dependencies {
     compile project(":owltorrent-storage")
 
     compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
-    compile 'commons-cli:commons-cli:1.4'
+    compile 'info.picocli:picocli:4.6.1'
 }
-
 jar {
     manifest {
-        attributes 'Main-Class': 'edu.rice.owltorrent.client.HelloWorldClient'
+        attributes 'Main-Class': 'edu.rice.owltorrent.core.ClientCLI'
     }
 
     from {

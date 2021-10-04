@@ -1,10 +1,11 @@
-package edu.rice.owltorrent.core.serialization;
+package edu.rice.owltorrent.core;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.TorrentManager;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
