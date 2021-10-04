@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.NonNull;
 
@@ -34,17 +35,26 @@ public class PeerLocator {
 
     try {
       // Build request
-      StringBuilder builder = new StringBuilder("https://torrent.ubuntu.com/announce?");
-      builder.append("info_hash=" + infoHash + "&");
-      builder.append("peer_id=" + peerID + "&");
-      builder.append("port=" + port + "&");
-      builder.append("left=" + left + "&");
-      builder.append("downloaded=" + downloaded + "&");
-      builder.append("uploaded=" + uploaded + "&");
-      builder.append("compact=" + compact);
+      String baseURL = "https://torrent.ubuntu.com/announce?"; // TODO: retrieve from torrent
+      String request =
+          baseURL
+              + "info_hash="
+              + infoHash
+              + "&peer_id="
+              + peerID
+              + "&port="
+              + port
+              + "&left="
+              + left
+              + "&downloaded="
+              + downloaded
+              + "&uploaded="
+              + uploaded
+              + "&compact="
+              + compact;
 
       // Set up connection with tracker
-      URL url = new URL(builder.toString());
+      URL url = new URL(request);
       URLConnection connection = url.openConnection();
 
       // Read bytes from tracker
@@ -62,9 +72,7 @@ public class PeerLocator {
 
       // Iterate peers and store IP + port for each peer
       for (int i = 0; i < peersAsBytes.length - 6; i += 6) {
-        byte[] ipAsBytes = {
-          peersAsBytes[i], peersAsBytes[i + 1], peersAsBytes[i + 2], peersAsBytes[i + 3]
-        };
+        byte[] ipAsBytes = Arrays.copyOfRange(peersAsBytes, i, i + 4);
         InetAddress inetAddress = InetAddress.getByAddress(ipAsBytes);
 
         int peerPort = ((peersAsBytes[i + 5] & 0xFF) << 8) | (peersAsBytes[i + 6] & 0xFF);
