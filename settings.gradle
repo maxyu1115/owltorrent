@@ -1,6 +1,5 @@
 rootProject.name = 'owltorrent'
 include 'owltorrent-core'
-include 'owltorrent-client'
 include 'owltorrent-network'
 include 'owltorrent-storage'
 include 'owltorrent-common'

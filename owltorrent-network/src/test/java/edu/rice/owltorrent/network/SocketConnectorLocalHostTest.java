@@ -5,7 +5,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
@@ -29,7 +29,7 @@ public class SocketConnectorLocalHostTest {
 
   private final TwentyByteId infoHash = TwentyByteId.fromString("12345678901234567890");
 
-  @Mock private NetworkToStorageAdapter networkToStorageAdapter;
+  @Mock private StorageAdapter storageAdapter;
 
   private HandShakeListener listener;
 
@@ -51,8 +51,7 @@ public class SocketConnectorLocalHostTest {
       listenerThread.start();
 
       Peer host = new Peer(peerId, new InetSocketAddress("127.0.0.1", 8080), torrent);
-      SocketConnector connector =
-          SocketConnector.makeInitialConnection(host, null, networkToStorageAdapter);
+      SocketConnector connector = SocketConnector.makeInitialConnection(host, null, storageAdapter);
       connector.initiateConnection();
 
     } catch (Exception e) {

@@ -1,5 +1,8 @@
 package edu.rice.owltorrent.storage;
 
+import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
+import edu.rice.owltorrent.common.util.Exceptions;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -10,17 +13,6 @@ import java.io.RandomAccessFile;
  *     BitTorrent network.
  */
 public class DiskFile {
-
-  public static class FileAlreadyExistsException extends Exception {}
-
-  public static class FileCouldNotBeCreatedException extends Exception {}
-
-  public static class IllegalByteOffsets extends Exception {
-
-    IllegalByteOffsets(String message) {
-      super(message);
-    }
-  }
 
   private long pieceSize;
   private long numBytes;
@@ -33,14 +25,16 @@ public class DiskFile {
    * @param numBytes The exact number of bytes in the file
    * @param pieceSize The piece size in bytes, see the BitTorrent specification
    *     https://www.bittorrent.org/beps/bep_0003.html
-   * @throws FileAlreadyExistsException Thrown if the file we are trying to write to already exists
-   * @throws FileCouldNotBeCreatedException Thrown if the file we plan to write to could not be
-   *     created
+   * @throws Exceptions.FileAlreadyExistsException Thrown if the file we are trying to write to
+   *     already exists
+   * @throws Exceptions.FileCouldNotBeCreatedException Thrown if the file we plan to write to could
+   *     not be created
    */
   public DiskFile(String filePath, long numBytes, long pieceSize)
-      throws FileAlreadyExistsException, FileCouldNotBeCreatedException, IllegalByteOffsets {
+      throws Exceptions.FileAlreadyExistsException, Exceptions.FileCouldNotBeCreatedException,
+          Exceptions.IllegalByteOffsets {
     if (numBytes < 0 || pieceSize < 0) {
-      throw new IllegalByteOffsets(
+      throw new Exceptions.IllegalByteOffsets(
           "Number of bytes (" + numBytes + ") or piece size (" + pieceSize + ") is less than 0.");
     }
 
@@ -48,7 +42,7 @@ public class DiskFile {
     this.numBytes = numBytes;
 
     if (fileExists(filePath)) {
-      throw new FileAlreadyExistsException();
+      throw new Exceptions.FileAlreadyExistsException();
     }
 
     // Note that technically this file could have been created between the last line and here, but
@@ -58,14 +52,14 @@ public class DiskFile {
     try {
       this.file = new RandomAccessFile(filePath, "rw");
     } catch (FileNotFoundException e) {
-      throw new FileCouldNotBeCreatedException();
+      throw new Exceptions.FileCouldNotBeCreatedException();
     }
 
     // See https://stackoverflow.com/questions/245251/create-file-with-given-size-in-java
     try {
       file.setLength(numBytes);
     } catch (IOException e) {
-      throw new FileCouldNotBeCreatedException();
+      throw new Exceptions.FileCouldNotBeCreatedException();
     }
   }
 
@@ -76,18 +70,20 @@ public class DiskFile {
    * having to seek back and forth over the file (likely the network download speed will be the
    * actual bottleneck, especially with an SSD).
    *
-   * @param pieceNum The piece number the block of data is from
-   * @param pieceOffset The offset in bytes of the block within the piece
-   * @param blockData The bytes to write to the file
-   * @throws IllegalByteOffsets Thrown if the arguments entail writing bytes to an illegal position.
+   * @param block The block to write to the file
+   * @throws Exceptions.IllegalByteOffsets Thrown if the arguments entail writing bytes to an
+   *     illegal position.
    * @throws IOException Thrown if writing to the file failed
    */
-  public synchronized void writeBlock(long pieceNum, long pieceOffset, byte[] blockData)
-      throws IllegalByteOffsets, IOException {
-    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
-    verifyOffset(fileOffset, pieceOffset, blockData.length);
+  public synchronized void writeBlock(FileBlock block)
+      throws Exceptions.IllegalByteOffsets, IOException {
+    int pieceNum = block.getPieceIndex();
+    int offsetWithinPiece = block.getOffsetWithinPiece();
+    byte[] data = block.getData();
+    long fileOffset = calculateFileOffset(pieceNum, offsetWithinPiece);
+    verifyOffset(fileOffset, offsetWithinPiece, data.length);
     file.seek(fileOffset);
-    file.write(blockData);
+    file.write(data);
   }
 
   /**
@@ -95,17 +91,18 @@ public class DiskFile {
    * not competition over the file object; see the writeBlock method for what to do if this becomes
    * a bottleneck.
    *
-   * @param pieceNum The piece number the block of data is from
-   * @param pieceOffset The offset in bytes of the block within the piece
-   * @param blockLength The number of bytes to read from the file
-   * @throws IllegalByteOffsets Thrown if the arguments entail reading bytes from an illegal
-   *     position.
+   * @param blockInfo The block information describing the block to retrieve
+   * @throws Exceptions.IllegalByteOffsets Thrown if the arguments entail reading bytes from an
+   *     illegal position.
    * @throws IOException Thrown if reading from the file failed
    */
-  public synchronized byte[] readBlock(long pieceNum, long pieceOffset, int blockLength)
-      throws IllegalByteOffsets, IOException {
-    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
-    verifyOffset(fileOffset, pieceOffset, blockLength);
+  public synchronized byte[] readBlock(FileBlockInfo blockInfo)
+      throws Exceptions.IllegalByteOffsets, IOException {
+    int pieceNum = blockInfo.getPieceIndex();
+    int offsetWithinPiece = blockInfo.getOffsetWithinPiece();
+    int blockLength = blockInfo.getLength();
+    long fileOffset = calculateFileOffset(pieceNum, offsetWithinPiece);
+    verifyOffset(fileOffset, offsetWithinPiece, blockLength);
     byte[] block = new byte[blockLength];
     file.seek(fileOffset);
     file.read(block);
@@ -122,13 +119,13 @@ public class DiskFile {
 
   /** Throws an error if the given offset or blockLength are invalid */
   private void verifyOffset(long fileOffset, long pieceOffset, int blockLength)
-      throws IllegalByteOffsets {
+      throws Exceptions.IllegalByteOffsets {
     boolean writingPastEndOfFile = fileOffset + blockLength > numBytes;
     boolean writingPastEndOfPiece = pieceOffset + blockLength > pieceSize;
     boolean writingBeforeStartOfFile = fileOffset < 0;
 
     if (writingPastEndOfFile) {
-      throw new IllegalByteOffsets(
+      throw new Exceptions.IllegalByteOffsets(
           "File offset "
               + fileOffset
               + " and block length "
@@ -136,7 +133,7 @@ public class DiskFile {
               + " is past the end of the file.");
     }
     if (writingPastEndOfPiece) {
-      throw new IllegalByteOffsets(
+      throw new Exceptions.IllegalByteOffsets(
           "Piece offset "
               + pieceOffset
               + " and block length "
@@ -144,7 +141,7 @@ public class DiskFile {
               + " is past the end of the piece.");
     }
     if (writingBeforeStartOfFile) {
-      throw new IllegalByteOffsets(
+      throw new Exceptions.IllegalByteOffsets(
           "File offset  " + fileOffset + "is before the start of the file.");
     }
   }

@@ -1,6 +1,6 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
@@ -36,10 +36,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final int totalPieces;
 
   private final Map<Peer, PeerConnector> peers;
-  private final NetworkToStorageAdapter networkStorageAdapter;
+  private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  public TorrentManager(Torrent file, NetworkToStorageAdapter adapter) {
+  public TorrentManager(Torrent file, StorageAdapter adapter) {
     this.torrent = file;
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
@@ -215,6 +215,19 @@ public class TorrentManager implements Runnable, AutoCloseable {
       uncompletedPieces.remove(blockInfo.getPieceIndex());
       completedPieces.add(blockInfo.getPieceIndex());
     }
+  }
+
+  public void reportBlockFailed(FileBlockInfo blockInfo) {
+    PieceStatus status = uncompletedPieces.get(blockInfo.getPieceIndex());
+    if (status == null) {
+      log.error("Block missing from uncompletedPieces: " + blockInfo);
+      throw new IllegalStateException("Block missing from uncompletedPieces: " + blockInfo);
+    }
+
+    // We must set to uncompleted here because even if the block was previously completed, a failed
+    // write could
+    // have messed it up
+    status.status.get(blockInfo.getOffsetWithinPiece() / status.blockLength).set(BLOCK_NOT_STARTED);
   }
 
   /** Piece Status class used to keep track of how much each piece is downloaded */

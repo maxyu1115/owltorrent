@@ -11,5 +11,5 @@ import lombok.Data;
 public class FileBlockInfo {
   protected final int pieceIndex;
   protected final int offsetWithinPiece;
-  protected final long length;
+  protected final int length;
 }
