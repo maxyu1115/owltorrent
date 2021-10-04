@@ -4,14 +4,17 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -23,7 +26,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "general")
 public class TorrentManager implements Runnable, AutoCloseable {
 
-  private static final int DEFAULT_BLOCK_NUM = 2;
+  private static final int DEFAULT_BLOCK_NUM = 1;
 
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
@@ -41,6 +44,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public TorrentManager(Torrent file, StorageAdapter adapter) {
     this.torrent = file;
+    file.setInfoHash(
+        new TwentyByteId(hexStringToByteArray("015304a441e0659d2ad8725eee6d9d329b1982c2")));
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
     this.totalPieces = torrent.getPieces().size();
@@ -52,6 +57,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.peers = new ConcurrentHashMap<>();
 
     // initPeers();
+    initPeers(
+        List.of(
+            new Peer(
+                TwentyByteId.fromString("OwlTorrentUser123456"),
+                new InetSocketAddress("168.5.58.18", 6881),
+                torrent)));
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -60,10 +71,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
       try {
         PeerConnector connector =
             SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+        connector.initiateConnection();
         addPeer(connector, peer);
         // TODO: revise
         connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
       } catch (IOException e) {
+        e.printStackTrace(System.err);
         log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
       }
     }
@@ -100,9 +113,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     // TODO: fix int casting.
     try {
-      int actualBlockSize = blockIndex * pieceStatus.blockLength;
-      if (pieceStatus.pieceIndex == totalPieces - 1
-          && blockIndex == pieceStatus.status.size() - 1) {
+      int actualBlockSize = pieceStatus.blockLength;
+      if (isLastBlock(pieceStatus, blockIndex)) {
         actualBlockSize = ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
       }
       peerConnector.writeMessage(
@@ -113,6 +125,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
+  @SneakyThrows
   @Override
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
@@ -140,7 +153,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         requestBlockFromPeer(connections.remove(0), newPieceStatus, notStartedIndex);
       }
 
-      // Thread.sleep(1000);
+      Thread.sleep(100);
     }
   }
 
@@ -182,15 +195,25 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
 
     PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex());
+    int blockIndex = blockInfo.getOffsetWithinPiece() / status.blockLength;
 
-    if (status.blockLength != blockInfo.getLength()) {
-      return false;
+    if (isLastBlock(status, blockIndex)) {
+      if (blockInfo.getLength() != ((int) torrent.getLastPieceLength()) % status.blockLength) {
+        log.info(
+            "FALSE1: "
+                + blockInfo.getLength()
+                + " "
+                + ((int) torrent.getLastPieceLength()) % status.blockLength);
+        return false;
+      }
+    } else {
+      if (status.blockLength != blockInfo.getLength()) {
+        log.info("FALSE2: " + status.blockLength + " " + blockInfo.getLength());
+        return false;
+      }
     }
 
-    return status
-        .status
-        .get(blockInfo.getOffsetWithinPiece() / status.blockLength)
-        .compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
+    return status.status.get(blockIndex).compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
   }
 
   public void reportBlockCompletion(FileBlockInfo blockInfo) {
@@ -206,6 +229,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
         .compareAndSet(BLOCK_IN_PROGRESS, BLOCK_DONE)) {
       for (AtomicInteger blockStatus : status.status) {
         if (blockStatus.get() != BLOCK_DONE) {
+          log.info(
+              "Block "
+                  + blockInfo.getOffsetWithinPiece() / status.blockLength
+                  + " not done for piece number "
+                  + blockInfo.getPieceIndex());
           // return if any block is not done
           return;
         }
@@ -230,6 +258,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
     status.status.get(blockInfo.getOffsetWithinPiece() / status.blockLength).set(BLOCK_NOT_STARTED);
   }
 
+  private boolean isLastBlock(PieceStatus pieceStatus, int blockIndex) {
+    return pieceStatus.pieceIndex == totalPieces - 1 && blockIndex == pieceStatus.status.size() - 1;
+  }
+
   /** Piece Status class used to keep track of how much each piece is downloaded */
   static final class PieceStatus {
     final int pieceIndex;
@@ -247,5 +279,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
       this.status = Collections.unmodifiableList(status);
       this.blockLength = blockLength;
     }
+  }
+
+  /* s must be an even-length string. */
+  public static byte[] hexStringToByteArray(String s) {
+    int len = s.length();
+    byte[] data = new byte[len / 2];
+    for (int i = 0; i < len; i += 2) {
+      data[i / 2] =
+          (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
+    }
+    return data;
   }
 }

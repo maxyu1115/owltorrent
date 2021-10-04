@@ -77,6 +77,11 @@ public abstract class PeerConnector implements AutoCloseable {
         FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
         if (manager.validateAndReportBlockInProgress(fileBlock)) {
           try {
+            log.info(
+                "Trying to write file block "
+                    + fileBlock.getPieceIndex()
+                    + " "
+                    + fileBlock.getOffsetWithinPiece());
             storageAdapter.write(fileBlock);
             manager.reportBlockCompletion(fileBlock);
           } catch (Exceptions.IllegalByteOffsets | IOException blockWriteException) {

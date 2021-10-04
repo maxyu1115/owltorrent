@@ -28,6 +28,7 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
       log.debug("connection is closed by other peer");
       return null;
     }
+    log.info(Arrays.toString(buffer.array()));
     int pstrLength = buffer.getInt(0);
     log.trace("read of message length finished, Message length is {}", pstrLength);
 
@@ -48,11 +49,17 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
       buffer.put(old);
     }
 
-    readBytes = inputChannel.read(buffer);
-    if (readBytes < 0) {
-      log.debug("connection is closed by other peer");
-      return null;
+    int totalReadBytes = 0;
+    while (totalReadBytes < pstrLength) {
+      readBytes = inputChannel.read(buffer);
+      if (readBytes < 0) {
+        log.debug("connection is closed by other peer");
+        return null;
+      }
+      totalReadBytes += readBytes;
+      log.info("Total read bytes " + totalReadBytes);
     }
+    log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();
     return PeerMessage.parse(buffer);
   }

@@ -33,13 +33,7 @@ public class SocketConnector extends PeerConnector {
         public void run() {
           ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
-            try {
-              PeerMessage message = messageReader.readMessage(channel);
-              handleMessage(message);
-            } catch (IOException e) {
-              // TODO: add more error handling.
-              log.error(e);
-            }
+            handleMessage(channel);
           }
         }
       };
@@ -83,6 +77,7 @@ public class SocketConnector extends PeerConnector {
     // read and confirm handshake from peer
     byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
     int readByteLength = in.read(incomingHandshakeBuffer);
+    log.info("Read bytes: " + readByteLength);
     if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
         || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
@@ -109,6 +104,7 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   public void writeMessage(PeerMessage message) throws IOException {
+    log.info(message);
     out.write(message.toBytes());
   }
 

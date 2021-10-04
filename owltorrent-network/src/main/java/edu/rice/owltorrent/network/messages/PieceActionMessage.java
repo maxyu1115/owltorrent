@@ -5,6 +5,7 @@ import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * Message sent to request/cancel piece from peer
@@ -12,6 +13,7 @@ import lombok.Getter;
  * @author Lorraine Lyu
  */
 @Getter
+@ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class PieceActionMessage extends PeerMessage {
 

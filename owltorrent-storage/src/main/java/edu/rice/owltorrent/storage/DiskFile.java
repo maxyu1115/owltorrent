@@ -7,11 +7,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * @author Josh Represents the local disk version of a file that a client is downloading from the
  *     BitTorrent network.
  */
+@Log4j2(topic = "general")
 public class DiskFile {
 
   private long pieceSize;
@@ -40,6 +42,8 @@ public class DiskFile {
 
     this.pieceSize = pieceSize;
     this.numBytes = numBytes;
+
+    System.out.println("Filepath: " + filePath);
 
     if (fileExists(filePath)) {
       throw new Exceptions.FileAlreadyExistsException();
@@ -82,6 +86,7 @@ public class DiskFile {
     byte[] data = block.getData();
     long fileOffset = calculateFileOffset(pieceNum, offsetWithinPiece);
     verifyOffset(fileOffset, offsetWithinPiece, data.length);
+    log.info("Writing " + fileOffset + " " + block.getData().length);
     file.seek(fileOffset);
     file.write(data);
   }

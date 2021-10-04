@@ -151,6 +151,8 @@ public abstract class PeerMessage {
   }
 
   static boolean confirmHandShake(byte[] buffer, Peer peer) {
+    log.info(buffer);
+
     if (buffer[0] != HANDSHAKE_LENGTH_BYTE) return false;
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
@@ -164,10 +166,10 @@ public abstract class PeerMessage {
       if (infoHash[i - HANDSHAKE_INFO_HASH_INDEX] != buffer[i]) return false;
     }
 
-    byte[] peerId = peer.getPeerID().getBytes();
-    for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
-      if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
-    }
+    //  byte[] peerId = peer.getPeerID().getBytes();
+    //  for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
+    //    if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
+    //  }
 
     return true;
   }
