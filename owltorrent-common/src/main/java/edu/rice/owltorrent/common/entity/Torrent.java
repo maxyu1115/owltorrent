@@ -43,6 +43,7 @@ public class Torrent {
   private HashMap<String, Long> fileLengths;
 
   private TwentyByteId infoHash;
+  //  private String infoHash;
 
   public Torrent() {}
 }
