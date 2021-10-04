@@ -20,8 +20,8 @@ public class Peer {
 
   @Getter private final Torrent torrent;
 
-  private final AtomicBoolean interested = new AtomicBoolean();
-  private final AtomicBoolean choked = new AtomicBoolean();
+  private final AtomicBoolean interested = new AtomicBoolean(false);
+  private final AtomicBoolean choked = new AtomicBoolean(true);
 
   public void setInterested(boolean interested) {
     this.interested.set(interested);

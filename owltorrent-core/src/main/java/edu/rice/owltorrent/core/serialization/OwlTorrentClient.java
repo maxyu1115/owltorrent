@@ -1,9 +1,11 @@
 package edu.rice.owltorrent.core.serialization;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
-import edu.rice.owltorrent.common.entity.FilePiece;
+import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.TorrentManager;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
@@ -23,12 +25,12 @@ public class OwlTorrentClient {
     try {
       torrent = TorrentParser.parse(torrentFile);
     } catch (IOException e) {
-      throw new Exceptions.ParsingTorrentFileFailedException;
+      throw new Exceptions.ParsingTorrentFileFailedException();
     }
     StorageAdapter adapter = createStorageAdapter(torrent);
     TorrentManager manager = new TorrentManager(torrent, adapter);
     manager.startDownloadingAsynchronously();
-    return () -> manager.getPercentDone();
+    return manager::getProgressPercent;
   }
 
   private StorageAdapter createStorageAdapter(Torrent torrent)
@@ -42,15 +44,15 @@ public class OwlTorrentClient {
     return new StorageAdapter() {
 
       @Override
-      public FilePiece read(int pieceIndex, int pieceOffset, int length)
+      public FileBlock read(FileBlockInfo blockInfo)
           throws Exceptions.IllegalByteOffsets, IOException {
-        return new FilePiece(
-            pieceIndex, length, diskFile.readBlock(pieceIndex, pieceOffset, length));
+        return new FileBlock(
+            blockInfo.getPieceIndex(), blockInfo.getLength(), diskFile.readBlock(blockInfo));
       }
 
       @Override
-      public void write(FilePiece filePiece) throws Exceptions.IllegalByteOffsets, IOException {
-        diskFile.writeBlock(filePiece.getPieceIndex(), filePiece.getOffset(), filePiece.getData());
+      public void write(FileBlock fileBlock) throws Exceptions.IllegalByteOffsets, IOException {
+        diskFile.writeBlock(fileBlock);
       }
     };
   }

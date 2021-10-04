@@ -1,6 +1,6 @@
 package edu.rice.owltorrent.network.messages;
 
-import edu.rice.owltorrent.common.entity.FilePiece;
+import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
@@ -32,8 +32,8 @@ public class PieceMessage extends PeerMessage {
     this.piece = piece;
   }
 
-  public FilePiece getFilePiece() {
-    return new FilePiece(index, begin, piece);
+  public FileBlock getFileBlock() {
+    return new FileBlock(index, begin, piece);
   }
 
   @Override

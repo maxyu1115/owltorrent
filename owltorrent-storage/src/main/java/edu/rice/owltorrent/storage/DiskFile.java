@@ -1,5 +1,7 @@
 package edu.rice.owltorrent.storage;
 
+import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.util.Exceptions;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -68,19 +70,20 @@ public class DiskFile {
    * having to seek back and forth over the file (likely the network download speed will be the
    * actual bottleneck, especially with an SSD).
    *
-   * @param pieceNum The piece number the block of data is from
-   * @param pieceOffset The offset in bytes of the block within the piece
-   * @param blockData The bytes to write to the file
+   * @param block The block to write to the file
    * @throws Exceptions.IllegalByteOffsets Thrown if the arguments entail writing bytes to an
    *     illegal position.
    * @throws IOException Thrown if writing to the file failed
    */
-  public synchronized void writeBlock(long pieceNum, long pieceOffset, byte[] blockData)
+  public synchronized void writeBlock(FileBlock block)
       throws Exceptions.IllegalByteOffsets, IOException {
-    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
-    verifyOffset(fileOffset, pieceOffset, blockData.length);
+    int pieceNum = block.getPieceIndex();
+    int offsetWithinPiece = block.getOffsetWithinPiece();
+    byte[] data = block.getData();
+    long fileOffset = calculateFileOffset(pieceNum, offsetWithinPiece);
+    verifyOffset(fileOffset, offsetWithinPiece, data.length);
     file.seek(fileOffset);
-    file.write(blockData);
+    file.write(data);
   }
 
   /**
@@ -88,17 +91,18 @@ public class DiskFile {
    * not competition over the file object; see the writeBlock method for what to do if this becomes
    * a bottleneck.
    *
-   * @param pieceNum The piece number the block of data is from
-   * @param pieceOffset The offset in bytes of the block within the piece
-   * @param blockLength The number of bytes to read from the file
+   * @param blockInfo The block information describing the block to retrieve
    * @throws Exceptions.IllegalByteOffsets Thrown if the arguments entail reading bytes from an
    *     illegal position.
    * @throws IOException Thrown if reading from the file failed
    */
-  public synchronized byte[] readBlock(long pieceNum, long pieceOffset, int blockLength)
+  public synchronized byte[] readBlock(FileBlockInfo blockInfo)
       throws Exceptions.IllegalByteOffsets, IOException {
-    long fileOffset = calculateFileOffset(pieceNum, pieceOffset);
-    verifyOffset(fileOffset, pieceOffset, blockLength);
+    int pieceNum = blockInfo.getPieceIndex();
+    int offsetWithinPiece = blockInfo.getOffsetWithinPiece();
+    int blockLength = blockInfo.getLength();
+    long fileOffset = calculateFileOffset(pieceNum, offsetWithinPiece);
+    verifyOffset(fileOffset, offsetWithinPiece, blockLength);
     byte[] block = new byte[blockLength];
     file.seek(fileOffset);
     file.read(block);
