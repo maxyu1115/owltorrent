@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
@@ -91,6 +92,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   // Can come up with better names, basically figures out what messages need to be sent to what
   // peers
   private void checkStatus() {}
+
+  private Bitfield getBitField() {
+    
+  }
 
   private void requestPieceFromPeer(Peer peer, int pieceNum, int blockNum, int blockSize) {
     PeerConnector peerConnector = peers.get(peer);

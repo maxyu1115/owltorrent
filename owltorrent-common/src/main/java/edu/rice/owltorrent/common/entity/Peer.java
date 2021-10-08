@@ -22,6 +22,7 @@ public class Peer {
 
   private final AtomicHashableBoolean interested = new AtomicHashableBoolean(false);
   private final AtomicHashableBoolean choked = new AtomicHashableBoolean(true);
+  private final
 
   public void setInterested(boolean interested) {
     this.interested.set(interested);
