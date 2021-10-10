@@ -10,7 +10,7 @@ import java.util.Optional;
 import lombok.extern.log4j.Log4j2;
 
 /** @author Lorraine Lyu */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public class ClientHandler implements Runnable, AutoCloseable {
   private final TorrentRepository torrentRepository;
   private final Socket socket;

@@ -13,7 +13,7 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Max Yu
  */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public class SingleThreadBlockingMessageReader implements MessageReader {
 
   // 2 MB

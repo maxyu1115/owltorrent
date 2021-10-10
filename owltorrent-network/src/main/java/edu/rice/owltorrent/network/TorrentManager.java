@@ -21,7 +21,7 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Lorraine Lyu, Max Yu
  */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public class TorrentManager implements Runnable, AutoCloseable {
 
   private static final int DEFAULT_BLOCK_NUM = 2;
@@ -194,16 +194,18 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     if (isLastBlock(status, blockIndex)) {
       if (blockInfo.getLength() != ((int) torrent.getLastPieceLength()) % status.blockLength) {
-        log.info(
-            "FALSE1: "
-                + blockInfo.getLength()
-                + " "
-                + ((int) torrent.getLastPieceLength()) % status.blockLength);
+        log.warn(
+            "Block length invalid for final piece: expected [{}], found [{}]",
+            ((int) torrent.getLastPieceLength()) % status.blockLength,
+            blockInfo.getLength());
         return false;
       }
     } else {
       if (status.blockLength != blockInfo.getLength()) {
-        log.info("FALSE2: " + status.blockLength + " " + blockInfo.getLength());
+        log.warn(
+            "Block length invalid: expected [{}], found [{}]",
+            status.blockLength,
+            blockInfo.getLength());
         return false;
       }
     }

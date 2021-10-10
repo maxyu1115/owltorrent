@@ -16,7 +16,7 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Lorraine Lyu, Max Yu
  */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
 
