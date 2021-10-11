@@ -5,6 +5,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
@@ -37,11 +38,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final int totalPieces;
 
+  @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnector> peers;
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  public TorrentManager(Torrent file, StorageAdapter adapter) {
+  public TorrentManager(TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
+    this.ourPeerId = ourPeerId;
     this.torrent = file;
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
