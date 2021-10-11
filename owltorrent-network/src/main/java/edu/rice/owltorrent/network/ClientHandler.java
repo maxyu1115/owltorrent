@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import lombok.extern.log4j.Log4j2;
 
+import javax.swing.text.html.Option;
+
 /** @author Lorraine Lyu */
 @Log4j2(topic = "general")
 public class ClientHandler implements Runnable, AutoCloseable {
@@ -16,9 +18,6 @@ public class ClientHandler implements Runnable, AutoCloseable {
   private final Socket socket;
   private DataOutputStream out;
   private DataInputStream in;
-
-  // TODO: BAD PRACTICE!!! refactor eventually
-  private TorrentManager torrentManager;
 
   ClientHandler(TorrentRepository torrentRepository, Socket socket) {
     this.torrentRepository = torrentRepository;
@@ -34,15 +33,19 @@ public class ClientHandler implements Runnable, AutoCloseable {
       in = new DataInputStream(socket.getInputStream());
 
       byte[] handShakeBuffer = new byte[68];
-      // TODO: handle read != 68 bytes
-      in.read(handShakeBuffer);
-      Optional<Peer> peer = verifyHandShake(handShakeBuffer);
-      if (peer.isEmpty()) {
+      if (in.read(handShakeBuffer) != 68) {
+        log.info("Received invalid handshake.");
+      }
+      Optional<TorrentManager> torrentManager = verifyHandShake(handShakeBuffer);
+      if (torrentManager.isEmpty()) {
         return;
       }
+
       // TODO: fill in NetworkToStorage adapter and messageReader.
+      Peer peer = getPeer(handShakeBuffer, torrentManager.get());
       SocketConnector connector =
-          SocketConnector.makeRespondingConnection(peer.get(), null, this.socket, null);
+          SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket, null);
+      torrentManager.get().addPeer(connector, connector.peer);
       connector.respondToConnection();
     } catch (IOException e) {
       e.printStackTrace();
@@ -50,7 +53,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
   }
 
   @VisibleForTesting
-  Optional<Peer> verifyHandShake(byte[] handShake) {
+  Optional<TorrentManager> verifyHandShake(byte[] handShake) {
     if (handShake[0] != 19) return Optional.empty();
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
@@ -61,16 +64,19 @@ public class ClientHandler implements Runnable, AutoCloseable {
     Optional<TorrentManager> torrentManager =
         torrentRepository.retrieveTorrent(new TwentyByteId(infoHash));
     if (torrentManager.isEmpty()) {
+      log.info("Received a request for file that's not being seeded.");
       return Optional.empty();
     }
 
-    this.torrentManager = torrentManager.get();
+    return torrentManager;
+  }
 
+  private Peer getPeer(byte[] handShake, TorrentManager torrentManager) {
     byte[] peerId = new byte[20];
     System.arraycopy(handShake, 48, peerId, 0, 20);
-    Peer peer = new Peer(new TwentyByteId(peerId), null, this.torrentManager.getTorrent());
+    Peer peer = new Peer(new TwentyByteId(peerId), null, torrentManager.getTorrent());
 
-    return Optional.of(peer);
+    return peer;
   }
 
   @Override

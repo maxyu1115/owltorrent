@@ -21,7 +21,7 @@ public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
   // TODO: bad practice, should eventually refactor
   protected final TorrentManager manager;
-  protected final StorageAdapter storageAdapter;
+  protected StorageAdapter storageAdapter;
   protected final MessageReader messageReader;
 
   /**
@@ -37,6 +37,10 @@ public abstract class PeerConnector implements AutoCloseable {
    * @throws IOException when connection fails
    */
   protected abstract void respondToConnection() throws IOException;
+
+  void setStorageAdapter(StorageAdapter adapter) {
+    this.storageAdapter = adapter;
+  }
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 

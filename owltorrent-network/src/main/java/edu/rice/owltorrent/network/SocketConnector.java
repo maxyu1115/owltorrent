@@ -50,7 +50,8 @@ public class SocketConnector extends PeerConnector {
       StorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, manager, storageAdapter, messageReader);
+    super(peer, manager, messageReader);
+    this.setStorageAdapter(storageAdapter);
     this.peerSocket = peerSocket;
   }
 

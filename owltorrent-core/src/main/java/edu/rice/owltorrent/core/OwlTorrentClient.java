@@ -6,7 +6,10 @@ import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
+import edu.rice.owltorrent.network.HandShakeListener;
 import edu.rice.owltorrent.network.TorrentManager;
+import edu.rice.owltorrent.network.TorrentRepository;
+import edu.rice.owltorrent.network.TorrentRepositoryImpl;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +19,15 @@ public class OwlTorrentClient {
 
   public interface ProgressMeter {
     float getPercentDone();
+  }
+
+  private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
+  private HandShakeListener handShakeListener;
+  private int listenerPort = 6881;
+
+  void startSeeding() {
+    this.handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    new Thread(this.handShakeListener).start();
   }
 
   public ProgressMeter downloadFile(String torrentFileName)

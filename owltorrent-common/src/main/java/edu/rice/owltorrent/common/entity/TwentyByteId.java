@@ -17,7 +17,7 @@ public class TwentyByteId {
     if (bytes.length != 20) {
       throw new IllegalStateException("Incorrect number of bytes: " + bytes.length);
     }
-    this.bytes = bytes;
+    this.bytes = Arrays.copyOf(bytes, 20);
   }
 
   @Override
