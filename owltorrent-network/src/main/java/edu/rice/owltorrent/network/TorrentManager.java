@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -120,7 +119,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
-  @SneakyThrows
   @Override
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
@@ -148,7 +146,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
-      Thread.sleep(100);
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        log.error(e);
+      }
     }
   }
 
