@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.core.serialization;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.File;
@@ -9,7 +10,8 @@ import org.junit.Test;
 
 public class TorrentParserTest {
   static String coreRoot = System.getProperty("user.dir");
-  static String torrentFileLocation = coreRoot + "/CourseraDSFundamentals.torrent";
+  static String torrentFileLocation = coreRoot + "/test.torrent";
+//static String torrentFileLocation = coreRoot + "/cs124.torrent";
   static File file = new File(torrentFileLocation);
 
   @Test
@@ -21,6 +23,14 @@ public class TorrentParserTest {
     assertEquals(1464, torrent.getPieces().size()); // Number of pieces
     assertEquals(524288, torrent.getPieceLength());
     assertEquals(415, torrent.getFileLengths().size()); // Effectively number of files
+    System.out.println(torrent.getInfoHash());
+  }
+
+  @Test
+  public void parse2() throws IOException {
+    Torrent torrent = TorrentParser.parse(file);
+
+    System.out.println(torrent.getInfoHash());
   }
 
   @Test(expected = NullPointerException.class)

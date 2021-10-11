@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.common.entity;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import lombok.Getter;
@@ -39,7 +40,7 @@ public class TwentyByteId {
 
   @Override
   public String toString() {
-    return new String(bytes);
+    return new BigInteger(1, bytes).toString(16);
   }
 
   public static TwentyByteId fromString(String str) {

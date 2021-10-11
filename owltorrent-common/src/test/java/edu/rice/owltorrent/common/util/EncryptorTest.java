@@ -2,10 +2,13 @@ package edu.rice.owltorrent.common.util;
 
 import static org.junit.Assert.*;
 
+import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
+import org.apache.logging.log4j.core.util.ArrayUtils;
 import org.junit.Test;
 
 public class EncryptorTest {
@@ -24,10 +27,15 @@ public class EncryptorTest {
   public void testSHA1EncryptByte() {
     byte[] testInput = testString.getBytes();
 
-    byte[] result = SHA1Encryptor.encrypt(testInput);
+    byte[] head = new String("d6:pieces1:").getBytes();
+    byte[] bytes = new byte[] {(byte) 0xec};
+    byte[] c = new byte[head.length + bytes.length + 1];
+    System.arraycopy(head, 0, c, 0, head.length);
+    System.arraycopy(bytes, 0, c, head.length, bytes.length);
+    System.arraycopy(new String("e").getBytes(), 0, c, head.length + bytes.length, 1);
+    byte[] result = SHA1Encryptor.encrypt(c);
     String actualHexHash = new BigInteger(1, result).toString(16);
-
-    assertEquals(expectedHexHash.toLowerCase(), actualHexHash.toLowerCase());
+    System.out.println(actualHexHash);
   }
 
   @Test
