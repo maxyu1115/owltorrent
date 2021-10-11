@@ -16,7 +16,7 @@ import lombok.extern.log4j.Log4j2;
  * @author Lorraine Lyu, Max Yu
  */
 @RequiredArgsConstructor
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
   // TODO: bad practice, should eventually refactor
@@ -77,6 +77,11 @@ public abstract class PeerConnector implements AutoCloseable {
         FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
         if (manager.validateAndReportBlockInProgress(fileBlock)) {
           try {
+            log.info(
+                "Trying to write file block "
+                    + fileBlock.getPieceIndex()
+                    + " "
+                    + fileBlock.getOffsetWithinPiece());
             storageAdapter.write(fileBlock);
             manager.reportBlockCompletion(fileBlock);
           } catch (Exceptions.IllegalByteOffsets | IOException blockWriteException) {

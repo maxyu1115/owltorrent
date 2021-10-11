@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 /** @author Lorraine Lyu */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 @RequiredArgsConstructor
 public class HandShakeListener implements Runnable {
   private final TorrentRepository torrentRepository;

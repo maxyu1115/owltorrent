@@ -23,6 +23,7 @@ public class ClientCLI implements Callable<Integer> {
     try {
       meter = client.downloadFile(torrentFileName);
     } catch (Exceptions.FileAlreadyExistsException e) {
+      e.printStackTrace(System.err);
       log.error(e);
       System.out.println(
           "Sorry, the file you are trying to download already exists in this location on your local machine!");
