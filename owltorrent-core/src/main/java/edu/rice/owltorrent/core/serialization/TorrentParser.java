@@ -1,18 +1,13 @@
 package edu.rice.owltorrent.core.serialization;
 
-//import com.dampcake.bencode.Bencode;
-import com.dampcake.bencode.BencodeInputStream;
 import edu.rice.owltorrent.common.entity.Torrent;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.*;
-
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Bencoder;
 import edu.rice.owltorrent.common.util.SHA1Encryptor;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.*;
 import lombok.NonNull;
 
 /**
@@ -32,13 +27,14 @@ public class TorrentParser {
   public static final String pathField = "path";
   public static final Bencoder bencoder = new Bencoder();
 
+  private static byte[] infoPart;
   /**
    * Bencode a Torrent file and extract important attributes
    *
    * @param file Torrent file path
    * @return pruned Torrent object
    */
-  public static Torrent parse(@NonNull File file) throws IOException {
+  public static Torrent parse(@NonNull File file) throws Exception {
     var dict = bencode(file);
     Torrent torrent = extractAttributes(dict);
     return torrent;
@@ -50,16 +46,10 @@ public class TorrentParser {
    * @param file Torrent file
    * @return dictionary containing all file attributes
    */
-  public static Map<String, Object> bencode(@NonNull File file) throws IOException {
-//    ByteArrayInputStream inputStream = new ByteArrayInputStream(Files.readAllBytes(file.toPath()));
-//    BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
-//    var dict = bencodeInputStream.readDictionary();
-
+  public static Map<String, Object> bencode(@NonNull File file) throws Exception {
     byte[] input = Files.readAllBytes(file.toPath());
-    System.out.println(new String(input, StandardCharsets.UTF_8));
-    HashMap dict = bencoder.unbencodeDictionary(input);
-    System.out.println("in bencode");
-    System.out.println(dict);
+    infoPart = input;
+    Map<String, Object> dict = (Map<String, Object>) bencoder.decodeAny(input, 0).getValue();
 
     return dict;
   }
@@ -71,40 +61,39 @@ public class TorrentParser {
    * @return pruned Torrent object
    */
   public static Torrent extractAttributes(@NonNull Map<String, Object> dict) {
-    System.out.println("in extractAttributes");
     String announceURL = (String) dict.get(announceField);
-//    var infoDict = bencoder.unbencodeDictionary((byte[]) dict.get(infoField));
-    HashMap infoDict = (HashMap) dict.get(infoField);
-    String name = (String) infoDict.get(nameField);
-//    long pieceLength = (long) infoDict.get(pieceLengthField);
-    Integer pieceLength = (Integer) infoDict.get(pieceLengthField);
-    List<String> pieces = extractPieces((String) infoDict.get(piecesField));
+    Map<String, Object> infoDict = (Map<String, Object>) dict.get(infoField);
 
-    HashMap<String, Integer> fileLengths = new HashMap<>();
+    String name = (String) infoDict.get(nameField);
+    Long pieceLength = (Long) infoDict.get(pieceLengthField);
+    List<String> pieces = extractPieces((String) infoDict.get(piecesField));
+    HashMap<String, Long> fileLengths = new HashMap<>();
     if (infoDict.containsKey(filesField)) { // Multiple files
       fileLengths =
           getFileLengths((ArrayList<LinkedHashMap<String, String>>) infoDict.get(filesField));
     } else { // Single file
-      fileLengths.put(name, (Integer) infoDict.get(lengthField));
+      fileLengths.put(name, (Long) infoDict.get(lengthField));
     }
 
-    byte[] infoHashBytes = bencoder.bencodeDictionary(infoDict);
-    System.out.println(new String(infoHashBytes));
-    System.out.println(bencoder.unbencodeDictionary(infoHashBytes));
+    String infoHashString = bencoder.encodeDict(infoDict);
+    int startIndex =
+        new String(infoPart, StandardCharsets.UTF_8)
+            .indexOf("4:info"); // Get the start of the info dict
+    byte[] infoHashBytes =
+        Arrays.copyOfRange(
+            infoPart,
+            startIndex + 6,
+            startIndex + 7 + infoHashString.length()); // Retrieve the original info dict
     byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashBytes);
 
-    System.out.println("encrypted bytes: " + encryptedInfoHashBytes);
-
-    String infoHash = byteUrlEncode(encryptedInfoHashBytes);
-
-    System.out.println("---");
-
-//    System.out.println(name);
-//    System.out.println(pieceLength);
-
-    return new Torrent(null, null, 0, null, null, new TwentyByteId(encryptedInfoHashBytes));
+    return new Torrent(
+        announceURL,
+        name,
+        pieceLength,
+        pieces,
+        fileLengths,
+        new TwentyByteId(encryptedInfoHashBytes));
   }
-
 
   /**
    * Extract SHA1 hashes of all the pieces
@@ -113,6 +102,7 @@ public class TorrentParser {
    * @return list of SHA1 hashes
    */
   public static List<String> extractPieces(@NonNull String rawPieceData) {
+    // TODO: do not encode raw bytes here into string
     List<String> pieces = new ArrayList<>();
 
     // Take chunks of size 20 at a time.
@@ -132,16 +122,15 @@ public class TorrentParser {
    * @param files List of all files in Torrent
    * @return map storing length for each file
    */
-  public static HashMap<String, Integer> getFileLengths(
+  public static HashMap<String, Long> getFileLengths(
       @NonNull ArrayList<LinkedHashMap<String, String>> files) {
-    HashMap<String, Integer> fileLengths = new HashMap<>();
+    HashMap<String, Long> fileLengths = new HashMap<>();
 
     // Iterate all files and store path + length for each file.
     for (LinkedHashMap<String, String> file : files) {
       String path = String.valueOf(file.get(pathField));
       String fileLengthStr = String.valueOf(file.get(lengthField));
-//      long fileLength = Long.parseLong(fileLengthStr);
-      int fileLength = Integer.parseInt(fileLengthStr);
+      long fileLength = Long.parseLong(fileLengthStr);
 
       fileLengths.put(path, fileLength);
     }
@@ -163,38 +152,39 @@ public class TorrentParser {
   }
 
   public static String hexEncodeURL(String hexString) throws Exception {
-    if(hexString==null || hexString.isEmpty()){
+    if (hexString == null || hexString.isEmpty()) {
       return "";
     }
-    if(hexString.length()%2 != 0){
-      throw new Exception("String is not hex, length NOT divisible by 2: "+hexString);
+    if (hexString.length() % 2 != 0) {
+      throw new Exception("String is not hex, length NOT divisible by 2: " + hexString);
     }
     int len = hexString.length();
-    char[] output = new char[len+len/2];
-    int i=0;
-    int j=0;
-    while(i<len){
-      output[j++]='%';
-      output[j++]=hexString.charAt(i++);
-      output[j++]=hexString.charAt(i++);
+    char[] output = new char[len + len / 2];
+    int i = 0;
+    int j = 0;
+    while (i < len) {
+      output[j++] = '%';
+      output[j++] = hexString.charAt(i++);
+      output[j++] = hexString.charAt(i++);
     }
     return new String(output);
   }
 
-  static final char[] CHAR_FOR_BYTE = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-  /** Encode byte data as a hex string... hex chars are UPPERCASE*/
-  public static String hexEncode(byte[] data){
-    if(data == null || data.length==0){
+  static final char[] CHAR_FOR_BYTE = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+  };
+  /** Encode byte data as a hex string... hex chars are UPPERCASE */
+  public static String hexEncode(byte[] data) {
+    if (data == null || data.length == 0) {
       return "";
     }
-    char[] store = new char[data.length*2];
-    for(int i=0; i<data.length; i++){
-      final int val = (data[i]&0xFF);
-      final int charLoc=i<<1;
-      store[charLoc]=CHAR_FOR_BYTE[val>>>4];
-      store[charLoc+1]=CHAR_FOR_BYTE[val&0x0F];
+    char[] store = new char[data.length * 2];
+    for (int i = 0; i < data.length; i++) {
+      final int val = (data[i] & 0xFF);
+      final int charLoc = i << 1;
+      store[charLoc] = CHAR_FOR_BYTE[val >>> 4];
+      store[charLoc + 1] = CHAR_FOR_BYTE[val & 0x0F];
     }
     return new String(store);
   }
-
 }

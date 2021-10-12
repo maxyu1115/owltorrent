@@ -1,50 +1,41 @@
 package edu.rice.owltorrent.core.serialization;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.File;
-import java.io.IOException;
 import org.junit.Test;
 
 public class TorrentParserTest {
   static String coreRoot = System.getProperty("user.dir");
-  static String torrentFileLocation = coreRoot + "/test.torrent";
-//static String torrentFileLocation = coreRoot + "/cs124.torrent";
+  static String torrentFileLocation = coreRoot + "/test2.torrent";
   static File file = new File(torrentFileLocation);
 
   @Test
-  public void parse() throws IOException {
+  public void parse() throws Exception {
     Torrent torrent = TorrentParser.parse(file);
 
-    assertEquals("udp://tracker.leechers-paradise.org:6969/announce", torrent.getAnnounceURL());
-    assertEquals("Data Science Fundamentals with Python and SQL", torrent.getName());
-    assertEquals(1464, torrent.getPieces().size()); // Number of pieces
-    assertEquals(524288, torrent.getPieceLength());
-    assertEquals(415, torrent.getFileLengths().size()); // Effectively number of files
-    System.out.println(torrent.getInfoHash());
-  }
-
-  @Test
-  public void parse2() throws IOException {
-    Torrent torrent = TorrentParser.parse(file);
-
-    System.out.println(torrent.getInfoHash());
+    assertEquals("https://hello", torrent.getAnnounceURL());
+    assertEquals("README.md", torrent.getName());
+    assertEquals(1, torrent.getPieces().size()); // Number of pieces
+    assertEquals(32768, torrent.getPieceLength());
+    assertEquals(1, torrent.getFileLengths().size()); // Effectively number of files
+    assertEquals((Long) 75L, (Long) torrent.getFileLengths().get("README.md"));
+    assertEquals("1dda8ef2e9942969ff1cab038128014a24b09440", torrent.getInfoHash().toString());
   }
 
   @Test(expected = NullPointerException.class)
-  public void parse_nullInput() throws IOException {
+  public void parse_nullInput() throws Exception {
     TorrentParser.parse(null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void bencode_nullInput() throws IOException {
+  public void bencode_nullInput() throws Exception {
     TorrentParser.bencode(null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void extractAttributes_nullInput() {
+  public void extractAttributes_nullInput() throws Exception {
     TorrentParser.extractAttributes(null);
   }
 

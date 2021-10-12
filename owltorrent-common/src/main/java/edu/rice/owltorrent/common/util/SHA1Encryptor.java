@@ -22,7 +22,7 @@ public class SHA1Encryptor {
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
 
-      return md.digest(input.getBytes(StandardCharsets.US_ASCII));
+      return md.digest(input.getBytes(StandardCharsets.UTF_8));
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException(e);
     }

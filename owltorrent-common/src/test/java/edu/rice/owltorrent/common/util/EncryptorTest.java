@@ -2,13 +2,10 @@ package edu.rice.owltorrent.common.util;
 
 import static org.junit.Assert.*;
 
-import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
-import org.apache.logging.log4j.core.util.ArrayUtils;
 import org.junit.Test;
 
 public class EncryptorTest {

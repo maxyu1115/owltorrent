@@ -44,6 +44,6 @@ public class TwentyByteId {
   }
 
   public static TwentyByteId fromString(String str) {
-    return new TwentyByteId(str.getBytes(StandardCharsets.US_ASCII));
+    return new TwentyByteId(str.getBytes(StandardCharsets.UTF_8));
   }
 }

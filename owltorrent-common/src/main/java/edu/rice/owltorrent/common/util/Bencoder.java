@@ -1,591 +1,225 @@
 package edu.rice.owltorrent.common.util;
-import org.apache.commons.lang3.SerializationUtils;
 
-import java.io.Serializable;
+import edu.rice.owltorrent.common.util.Exceptions.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
+import java.util.function.BiFunction;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
-/*
- * Reference from
- * http://bnrg.cs.berkeley.edu/~adj/cs16x/Nachos/BitTorrent/Bencoder.java
+/**
+ * author: shijie, yuchen
  *
- * Copyright 2006 Robert Sterling Moore II
- *
- * This computer program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) any
- * later version.
- *
- * This computer program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this computer program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * <p>Reference:
+ * https://github.com/BrightStarry/zx-bt/blob/7bbcf01d613cdb8afc5940b4b6641dcf3996ded6/zx-bt-spider/src/main/java/com/zx/bt/spider/util/Bencode.java
  */
+public class Bencoder {
+  private static final String LOG = "[Bencode]";
 
-public class Bencoder
-{
-    // Used to determine the next bencoded input type in the file.
-    private final int NULL_TYPE = 0;
+  private Charset charset = StandardCharsets.UTF_8;
 
-    private final int STRING = 1;
+  @SuppressWarnings("unchecked")
+  private BiFunction<byte[], Integer, MethodResult>[] functions = new BiFunction[4];
 
-    private final int INTEGER = 2;
+  private byte stringTypeSeparator;
 
-    private final int LIST = 3;
+  private final String intTypePre = "i";
+  private final String listTypePre = "l";
+  private final String dictTypePre = "d";
+  private final String typeSuf = "e";
 
-    private final int DICTIONARY = 4;
+  public Bencoder() {
+    init();
+  }
 
-    private final int STRUCTURE_END = 5;
+  public void init() {
+    stringTypeSeparator = ":".getBytes()[0];
 
-    private class Index
-    {
-        public int index;
+    functions[0] = (bytes, start) -> decodeDict(bytes, start);
 
-        public Index()
-        {
-            this.index = 0;
-        }
+    functions[1] = (bytes, start) -> decodeString(bytes, start);
+
+    functions[2] = (bytes, start) -> decodeInt(bytes, start);
+
+    functions[3] = (bytes, start) -> decodeList(bytes, start);
+  }
+
+  public MethodResult<String> decodeString(byte[] bytes, int start) {
+    if (start >= bytes.length || bytes[start] < '0' || bytes[start] > '9')
+      throw new BTException(LOG + "String:" + start);
+
+    int separatorIndex = ArrayUtils.indexOf(bytes, stringTypeSeparator, start);
+    if (separatorIndex == -1) throw new BTException(LOG + "String:" + start);
+
+    int strLen;
+    try {
+      strLen =
+          Integer.parseInt(new String(ArrayUtils.subarray(bytes, start, separatorIndex), charset));
+    } catch (NumberFormatException e) {
+      throw new BTException(LOG + "String:" + start);
     }
+    if (strLen < 0) throw new BTException(LOG + "String:" + start);
 
-    private Index index;
+    int endIndex = separatorIndex + strLen + 1;
+    if (separatorIndex > bytes.length) throw new BTException(LOG + "String:" + start);
+    return new MethodResult<>(
+        new String(ArrayUtils.subarray(bytes, separatorIndex + 1, endIndex), charset), endIndex);
+  }
 
-    public Bencoder()
-    {
-        super();
-        index = new Index();
+  public MethodResult<Long> decodeInt(byte[] bytes, int start) {
+    if (start >= bytes.length || (char) bytes[start] != intTypePre.charAt(0))
+      throw new BTException(LOG + "Int:" + start);
+
+    int endIndex = ArrayUtils.indexOf(bytes, typeSuf.getBytes(charset)[0], start + 1);
+    if (endIndex == -1) throw new BTException(LOG + "Int:" + start);
+    long result;
+    try {
+      result = Long.parseLong(new String(ArrayUtils.subarray(bytes, start + 1, endIndex)));
+    } catch (NumberFormatException e) {
+      throw new BTException(LOG + "Int:" + start);
     }
+    return new MethodResult<>(result, ++endIndex);
+  }
 
-    public byte[] bencodeString(String input)
-    {
+  public MethodResult<List<Object>> decodeList(byte[] bytes, int start) {
+    List<Object> result = new ArrayList<>();
+    if (start >= bytes.length || (char) bytes[start] != listTypePre.charAt(0))
+      throw new BTException(LOG + "List:" + start);
 
-        int length_of_string = input.length();
-        int digits_of_string_length = 0;
+    int i = start + 1;
+    for (; i < bytes.length; ) {
 
-        while (length_of_string > 0)
-        {
-            length_of_string /= 10;
-            digits_of_string_length++;
-        }
+      if (bytes[i] == typeSuf.getBytes(charset)[0]) break;
 
-        // We need to store the length of the string, a ':', and the string
-        // itself
-        byte[] return_bytes = new byte[input.length() + digits_of_string_length
-                + 1];
+      MethodResult methodResult = decodeAny(bytes, i);
 
-        length_of_string = input.length();
+      i = methodResult.index;
 
-        for (int i = digits_of_string_length + 1; i < return_bytes.length; i++)
-        {
-            return_bytes[i] = (byte) input.charAt(i - digits_of_string_length
-                    - 1);
-        }
-
-        return_bytes[digits_of_string_length] = (byte) ':';
-
-        while (digits_of_string_length > 0)
-        {
-            return_bytes[digits_of_string_length - 1] = (byte) ((length_of_string % 10) + 48);
-            length_of_string /= 10;
-            digits_of_string_length--;
-        }
-
-        return return_bytes;
+      result.add(methodResult.value);
     }
+    if (i == bytes.length) throw new BTException(LOG + "List:" + start);
 
-    public String unbencodeString(byte[] input)
-    {
-        index.index = 0;
-        return unbencodeString(input, index);
+    return new MethodResult<>(result, ++i);
+  }
+
+  public MethodResult<Map<String, Object>> decodeDict(byte[] bytes, int start) {
+    Map<String, Object> result = new LinkedHashMap<>();
+    if (start >= bytes.length || bytes[start] != dictTypePre.charAt(0))
+      throw new BTException(LOG + "Dict:" + start);
+
+    int i = start + 1;
+    for (; i < bytes.length; ) {
+      String item = new String(new byte[] {bytes[i]}, charset);
+
+      if (item.equals(typeSuf)) break;
+
+      if (!StringUtils.isNumeric(item)) throw new BTException(LOG + "Dict:" + start);
+
+      MethodResult<String> keyMethodResult = decodeString(bytes, i);
+
+      i = keyMethodResult.index;
+
+      MethodResult valueMethodResult = decodeAny(bytes, i);
+
+      i = valueMethodResult.index;
+
+      result.put(keyMethodResult.value, valueMethodResult.value);
     }
+    if (i == bytes.length) throw new BTException(LOG + "Dict:" + start);
+    return new MethodResult<>(result, ++i);
+  }
 
-    /**
-     * Parses a bencoded String located <code>input[index</code> and returns
-     * it as a String object.
-     *
-     * @param input
-     *            Contains bencoded data.
-     * @param index
-     *            A valid index into <code>data</code> that points to the
-     *            beginning of a bencoded String.
-     * @return A String representing the bencoded String at
-     *         <code>data[index]</code>.
-     */
-    public String unbencodeString(byte[] input, Index index)
-    {
-        String return_string = null;
-        int temp_index = index.index;
-        int power_of_ten = 1;
-        int length_of_string = 0;
-        boolean first_digit = false;
-        StringBuffer temp_string = new StringBuffer();
-
-        // Determine the length of the integer representing the String's length.
-        while (input[temp_index] != (byte) ':')
-        {
-            if (first_digit)
-            {
-                power_of_ten *= 10;
-            }
-            first_digit = true;
-            temp_index++;
-        }
-
-        // Determine the length of the string.
-        while (input[index.index] != (byte) ':')
-        {
-            length_of_string += ((input[index.index] - 48) * power_of_ten);
-            power_of_ten /= 10;
-            index.index++;
-
-        }
-
-        // Skip the ':'
-        index.index++;
-
-        // Extract the string.
-        while ((length_of_string > 0) && (index.index <= input.length))
-        {
-            temp_string.append((char) input[index.index]);
-
-            length_of_string--;
-            index.index++;
-        }
-
-        return_string = temp_string.toString();
-
-        return return_string;
+  public MethodResult decodeAny(byte[] bytes, int start) {
+    for (BiFunction<byte[], Integer, MethodResult> function : functions) {
+      try {
+        return function.apply(bytes, start);
+      } catch (BTException e) {
+      }
     }
+    throw new BTException(LOG + "Any:" + start);
+  }
 
-    public byte[] bencodeInteger(Integer input)
-    {
-        byte[] return_bytes;
+  @SuppressWarnings("unchecked")
+  public <T> T decode(byte[] bytes, Class<T> tClass) {
+    return (T) decodeAny(bytes, 0).value;
+  }
 
-        if (input.intValue() == 0)
-        {
-            return_bytes = new byte[3];
-            return_bytes[0] = (byte) 'i';
-            return_bytes[1] = (byte) 48;
-            return_bytes[2] = (byte) 'e';
-        }
+  public String encodeString(String string) {
+    return string.length() + ":" + string;
+  }
 
-        else
-        {
-            int number_of_digits = 0;
-            int input_value = input.intValue();
-            boolean is_negative = false;
-            if (input_value < 0)
-            {
-                is_negative = true;
-                input_value = -input_value;
-            }
+  public String encodeLong(long i) {
+    return intTypePre + i + typeSuf;
+  }
 
-            while (input_value > 0)
-            {
-                number_of_digits++;
-                input_value /= 10;
-            }
-
-            input_value = input.intValue();
-
-            if (is_negative)
-            {
-                input_value = -input_value;
-            }
-
-            if (is_negative)
-            {
-                return_bytes = new byte[number_of_digits + 3];
-                return_bytes[1] = (byte) '-';
-            }
-            else
-            {
-                return_bytes = new byte[number_of_digits + 2];
-            }
-            return_bytes[0] = (byte) 'i';
-
-            return_bytes[return_bytes.length - 1] = (byte) 'e';
-
-            int stop_value = 0;
-            if (is_negative)
-            {
-                stop_value = 1;
-            }
-            for (int i = return_bytes.length - 2; i > stop_value; i--)
-            {
-                return_bytes[i] = (byte) ((input_value % 10) + 48);
-                input_value /= 10;
-            }
-        }
-        return return_bytes;
+  public String encodeList(List<Object> list) {
+    String[] result = new String[list.size() + 2];
+    result[0] = listTypePre;
+    for (int i = 1; i <= list.size(); i++) {
+      result[i] = encodeAny(list.get(i - 1));
     }
+    result[result.length - 1] = typeSuf;
 
-    public Integer unbencodeInteger(byte[] input)
-    {
-        index.index = 0;
-        return unbencodeInteger(input, index);
+    return String.join("", result);
+  }
+
+  public String encodeDict(Map<String, Object> map) {
+    String[] result = new String[map.size() + 2];
+    result[0] = dictTypePre;
+    result[result.length - 1] = typeSuf;
+    int i = 1;
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+      result[i++] = encodeString(entry.getKey()) + encodeAny(entry.getValue());
     }
+    return String.join("", result);
+  }
 
-    /**
-     * Parses a bencoded Integer stored in <code>input</code> and returns it
-     * as an Integer object.
-     *
-     * @param input
-     *            Contains bencoded data.
-     * @param index
-     *            A valid index into <code>input</code> that points to the
-     *            beginning of a bencoded Integer.
-     * @return An Integer representing the bencoded Integer in
-     *         <code>input</code>.
-     */
-    public Integer unbencodeInteger(byte[] input, Index index)
-    {
-        Integer return_integer;
-        int temp_value = 0;
-        int power_of_ten = 1;
-        boolean first_digit = false;
-        boolean is_negative = false;
-
-        // Skip the 'i'
-        index.index++;
-
-        if (input[index.index] == (byte) '-')
-        {
-            is_negative = true;
-            index.index++;
-        }
-
-        int temp_index = index.index;
-
-        // Determine the length of the integer representing the String's length.
-        while (input[temp_index] != (byte) 'e')
-        {
-            if (first_digit)
-            {
-                power_of_ten *= 10;
-            }
-            first_digit = true;
-            temp_index++;
-        }
-
-        // Determine the length of the string.
-        while (input[index.index] != (byte) 'e')
-        {
-            temp_value += ((input[index.index] - 48) * power_of_ten);
-            power_of_ten /= 10;
-            index.index++;
-        }
-
-        // Skip the 'e'
-        index.index++;
-
-        if (is_negative)
-        {
-            return_integer = new Integer(-temp_value);
-        }
-        else
-        {
-            return_integer = new Integer(temp_value);
-        }
-
-        return return_integer;
+  @SuppressWarnings("unchecked")
+  public String encodeAny(Object obj) {
+    try {
+      if (obj instanceof Integer) {
+        return encodeLong(Integer.toUnsignedLong((int) obj));
+      } else if (obj instanceof Long) {
+        return encodeLong((long) obj);
+      } else if (obj instanceof String) {
+        return encodeString((String) obj);
+      } else if (obj instanceof Map) {
+        return encodeDict((Map<String, Object>) obj);
+      } else if (obj instanceof List) {
+        return encodeList((List<Object>) obj);
+      } else {
+        throw new BTException(LOG + "");
+      }
+    } catch (BTException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new BTException(LOG + "Encode:" + e.getMessage());
     }
+  }
 
-    /**
-     * Bencodes a HashMap into a bencoded dictionary.The HashMap must contain
-     * only bencoded strings representing bencoded integers, strings, lists, and
-     * dictionaries.
-     *
-     * @param input
-     *            A HashMap containing bencoded objects representing the entries
-     *            in a dictionary.
-     * @return
-     */
-    public byte[] bencodeDictionary(HashMap input)
-    {
-        byte[] return_bytes = null;
-        int length = 0;
-        Vector dictionary_entries = new Vector();
+  /** string to bytes */
+  public byte[] toBytes(String string) {
+    return string.getBytes(charset);
+  }
 
-        Iterator input_iterator = input.entrySet().iterator();
+  public byte[] encode(Object obj) {
+    return toBytes(encodeAny(obj));
+  }
 
-        while (input_iterator.hasNext())
-        {
-            Map.Entry me = (Map.Entry) input_iterator.next();
-            length += (me.getKey().toString().getBytes()).length;
-            length += (me.getValue().toString().getBytes()).length;
-
-            dictionary_entries.add(me.getKey().toString().getBytes());
-            dictionary_entries.add(me.getValue().toString().getBytes());
-
-        }
-        return_bytes = new byte[length + 2];
-        return_bytes[0] = (byte) 'd';
-        return_bytes[return_bytes.length - 1] = (byte) 'e';
-
-        int index = 1;
-
-        for (int i = 0; i < dictionary_entries.size(); i++)
-        {
-
-            for (int j = 0; j < ((byte[]) dictionary_entries.get(i)).length; j++)
-            {
-                return_bytes[index] = ((byte[]) dictionary_entries.get(i))[j];
-                index++;
-            }
-        }
-
-        return return_bytes;
-    }
-
-    /**
-     * Parses a bencoded Dictionary represented by <code>input</code> and
-     * returns it as a Map object.
-     *
-     * @param input
-     *            Contains bencoded input.
-     * @param index
-     *            A valid index into <code>input</code> that points to the
-     *            beginning of a bencoded Dictionary.
-     * @return A Map representing the bencoded Dictionary at <code>input</code>.
-     */
-    public HashMap unbencodeDictionary(byte[] input)
-    {
-        index.index = 0;
-        return unbencodeDictionary(input, index);
-    }
-
-    /**
-     * Parses a bencoded Dictionary located <code>input[index]</code> and
-     * returns it as a Map object.
-     *
-     * @param input
-     *            Contains bencoded input.
-     * @param index
-     *            A valid index into <code>input</code> that points to the
-     *            beginning of a bencoded Dictionary.
-     * @return A Map representing the bencoded Dictionary at
-     *         <code>input[index]</code>.
-     */
-    public HashMap unbencodeDictionary(byte[] input, Index index)
-    {
-        HashMap returned_map = new HashMap();
-        String key;
-        Object value;
-
-        // Skip the 'd'
-        index.index++;
-
-        int next_data_type = getEncodedType(input, index.index);
-
-        // As long as there isn't an error or the end of our dictionary, keep
-        // parsing the entries.
-        while ((next_data_type != NULL_TYPE)
-                && (next_data_type != STRUCTURE_END)
-                && (index.index < input.length))
-        {
-            // The key is ALWAYS a string.
-            if (next_data_type != STRING)
-            {
-                System.err
-                        .println("Error: The bencoded object beginning at index.index "
-                                + index.index
-                                + " is not a String, but must be according to the BitTorrent definition.");
-            }
-
-            key = unbencodeString(input, index);
-
-            // Now get the input type of the value
-            next_data_type = getEncodedType(input, index.index);
-
-            switch (next_data_type)
-            {
-                case INTEGER:
-                    value = unbencodeInteger(input, index);
-                    break;
-                case STRING:
-                    value = unbencodeString(input, index);
-                    break;
-                case LIST:
-                    value = unbencodeList(input, index);
-                    break;
-                case DICTIONARY:
-                    value = unbencodeDictionary(input, index);
-                    break;
-                default:
-                    System.err.println("Error: The value of the key \"" + key
-                            + "\" is not a valid bencoded data type.");
-                    return null;
-            }
-
-            returned_map.put(key, value);
-            // System.out.println("[" + key + "/" + value.toString() + "]");
-
-            next_data_type = getEncodedType(input, index.index);
-        }
-
-        // Skip the 'e'
-        index.index++;
-
-        return returned_map;
-    }
-
-    /**
-     * Takes a vector of bencoded objects and returns a bencoded list containing
-     * the same data.
-     *
-     * @param input
-     *            A Vector containing bencoded data.
-     * @return
-     */
-    public byte[] bencodeList(Vector input)
-    {
-
-        byte[] return_bytes = null;
-        int length = 0;
-
-        for (int i = 0; i < input.size(); i++)
-        {
-            length += ((byte[])input.get(i)).length;
-        }
-
-        return_bytes = new byte[length + 2];
-        return_bytes[0] = (byte)'l';
-        return_bytes[return_bytes.length - 1] = (byte)'e';
-
-        int index = 1;
-
-        for(int i = 0; i < input.size(); i++)
-        {
-            for(int j = 0; j < ((byte[])input.get(i)).length; j++)
-            {
-                return_bytes[index] = ((byte[])input.get(i))[j];
-                index++;
-            }
-        }
-
-        return return_bytes;
-    }
-
-    public Vector unbencodeList(byte[] input)
-    {
-        index.index = 0;
-        return unbencodeList(input, index);
-    }
-
-    /**
-     * Parses a bencoded List stored in <code>input</code> and returns it as a
-     * List object.
-     *
-     * @param input
-     *            Contains a bencoded List.
-     * @param index
-     *            A valid index into <code>input</code> that points to the
-     *            beginning of a bencoded List.
-     * @return A List representing the bencoded List in <code>input</code>.
-     */
-    public Vector unbencodeList(byte[] input, Index index)
-    {
-        Vector return_list = new Vector();
-
-        // Skip the 'l'
-        index.index++;
-
-        int next_data_type = getEncodedType(input, index.index);
-
-        while ((next_data_type != STRUCTURE_END)
-                && (next_data_type != NULL_TYPE)
-                && (index.index < input.length))
-        {
-            switch (next_data_type)
-            {
-                case INTEGER:
-                    return_list.add(unbencodeInteger(input, index));
-                    break;
-                case STRING:
-                    return_list.add(unbencodeString(input, index));
-                    break;
-                case LIST:
-                    return_list.add(unbencodeList(input, index));
-                    break;
-                case DICTIONARY:
-                    return_list.add(unbencodeDictionary(input, index));
-                    break;
-                default:
-                    System.err.println("Error: The object at position "
-                            + index.index
-                            + " is not a valid bencoded data type.");
-                    return null;
-            }
-            next_data_type = getEncodedType(input, index.index);
-        }
-
-        // Skip the 'e'
-        index.index++;
-
-        return return_list;
-    }
-
-    /**
-     * Reads the byte at <code>input[index]</code> and returns an integer
-     * based on the value.
-     *
-     * @param input
-     *            Contains bencoded input.
-     * @param index
-     *            A valid index into input that points to the beginning of a
-     *            bencoded String, Integer, List or Dictionary.
-     * @return An <code>int</code> based on the value of the byte at
-     *         <code>input[index]</code>.
-     */
-    public int getEncodedType(byte[] input, int index)
-    {
-        // The value to be returned
-        int return_value = NULL_TYPE;
-
-        // Set return_value according to the byte at input[index]
-        switch ((char) input[index])
-        {
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                return_value = STRING;
-                break;
-            case 'i':
-                return_value = INTEGER;
-                break;
-            case 'l':
-                return_value = LIST;
-                break;
-            case 'd':
-                return_value = DICTIONARY;
-                break;
-            case 'e':
-                return_value = STRUCTURE_END;
-                break;
-            default:
-                System.err
-                        .println("Error: The byte at position "
-                                + index
-                                + " in the .torrent file is not the beginning of a bencoded data type.");
-                break;
-        }
-
-        return return_value;
-    }
+  @Getter
+  @Setter
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class MethodResult<T> {
+    private T value;
+    private int index;
+  }
 }
