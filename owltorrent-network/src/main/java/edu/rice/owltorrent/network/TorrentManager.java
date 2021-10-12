@@ -1,12 +1,16 @@
 package edu.rice.owltorrent.network;
 
+import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
+import java.math.RoundingMode;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -23,7 +27,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public class TorrentManager implements Runnable, AutoCloseable {
 
-  private static final int DEFAULT_BLOCK_NUM = 2;
+  private static final int DEFAULT_BLOCK_NUM = 8;
 
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
@@ -41,9 +45,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public TorrentManager(Torrent file, StorageAdapter adapter) {
     this.torrent = file;
+    file.setInfoHash(
+        new TwentyByteId(hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
-    this.totalPieces = torrent.getPieces().size();
+    this.totalPieces = torrent.getPieces().size() + 1;
 
     for (int idx = 0; idx < totalPieces; idx++) {
       this.notStartedPieces.add(idx);
@@ -51,12 +57,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     this.peers = new ConcurrentHashMap<>();
 
-    // initPeers(
-    //    List.of(
-    //        new Peer(
-    //            TwentyByteId.fromString("OwlTorrentUser123456"),
-    //            new InetSocketAddress("168.5.58.18", 6881),
-    //            torrent)));
+    initPeers(
+        List.of(
+            new Peer(
+                TwentyByteId.fromString("OwlTorrentUser123456"),
+                new InetSocketAddress("168.5.60.91", 6881),
+                torrent)));
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -161,8 +167,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
       log.error("Piece length not divisible by block num");
       throw new IllegalStateException("Piece length not divisible by block num");
     }
-    return new PieceStatus(
-        pieceIndex, DEFAULT_BLOCK_NUM, (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM);
+    int blockLength = (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM;
+    int blockNum =
+        pieceIndex < totalPieces - 1
+            ? DEFAULT_BLOCK_NUM
+            : IntMath.divide((int) torrent.getLastPieceLength(), blockLength, RoundingMode.CEILING);
+    return new PieceStatus(pieceIndex, blockNum, blockLength);
   }
 
   private PieceStatus getOrInitPieceStatus(int pieceIndex) {
