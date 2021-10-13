@@ -17,12 +17,19 @@ public class TorrentRepositoryImpl implements TorrentRepository {
     @Override
     public void registerTorrentManager(TorrentManager manager) {
         TwentyByteId infoHash = manager.getTorrent().getInfoHash();
+        /* This conditional should not be triggered in any case. */
         if (infoHashToTorrentManager.containsKey(infoHash)) {
             log.error("Torrent manager for torrent {} already exist.", manager.getTorrent().getName());
+            return;
         }
         this.infoHashToTorrentManager.put(infoHash, manager);
     }
 
+    /**
+     * Usage: once a new handshake is received, the client queries with this method
+     * for the TorrentManager. If nothing found, the client should ignore the handshake.
+     * @param infoHash The info_hash parsed from the remote peer's handshake
+     */
     @Override
     public Optional<TorrentManager> retrieveTorrent(TwentyByteId infoHash) {
         return Optional.of(this.infoHashToTorrentManager.get(infoHash));
