@@ -9,12 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import lombok.NonNull;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Torrent file parser.
  *
  * @author bhaveshshah
  */
+@Log4j2(topic = "general")
 public class TorrentParser {
 
   public static final String infoField = "info";
@@ -112,6 +114,9 @@ public class TorrentParser {
 
       pieces.add(rawPieceData.substring(startIndex, endIndex));
     }
+
+    // TODO: fix bug, piece one off
+    log.info("Found " + pieces.size() + " pieces");
 
     return pieces;
   }

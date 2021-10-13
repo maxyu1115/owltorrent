@@ -11,7 +11,9 @@ import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2(topic = "general")
 public class OwlTorrentClient {
 
   public interface ProgressMeter {
@@ -40,6 +42,7 @@ public class OwlTorrentClient {
     // For now we just support one file. TODO(josh): Add support for multiple files
     assert (torrent.getFileLengths().size() == 1);
     Map.Entry<String, Long> singleFile = torrent.getFileLengths().entrySet().iterator().next();
+    log.info(singleFile);
     DiskFile diskFile =
         new DiskFile(singleFile.getKey(), singleFile.getValue(), torrent.getPieceLength());
     return new StorageAdapter() {

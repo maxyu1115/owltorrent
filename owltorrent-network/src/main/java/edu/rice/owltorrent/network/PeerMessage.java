@@ -19,7 +19,7 @@ import lombok.extern.log4j.Log4j2;
  * @author Lorraine Lyu
  */
 @Data
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 @EqualsAndHashCode
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
