@@ -42,7 +42,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
       // TODO: fill in NetworkToStorage adapter and messageReader.
       Peer peer = getPeer(handShakeBuffer, torrentManager.get());
       SocketConnector connector =
-          SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket, null);
+          SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket);
       torrentManager.get().addPeer(connector, connector.peer);
       connector.respondToConnection();
     } catch (IOException e) {
