@@ -9,8 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import lombok.extern.log4j.Log4j2;
 
-import javax.swing.text.html.Option;
-
 /** @author Lorraine Lyu */
 @Log4j2(topic = "general")
 public class ClientHandler implements Runnable, AutoCloseable {
