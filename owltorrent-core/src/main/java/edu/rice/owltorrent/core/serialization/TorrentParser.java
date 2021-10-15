@@ -67,7 +67,7 @@ public class TorrentParser {
     Map<String, Object> infoDict = (Map<String, Object>) dict.get(infoField);
 
     String name = (String) infoDict.get(nameField);
-    Long pieceLength = (Long) infoDict.get(pieceLengthField);
+    long pieceLength = (long) infoDict.get(pieceLengthField);
     List<String> pieces = extractPieces((String) infoDict.get(piecesField));
     HashMap<String, Long> fileLengths = new HashMap<>();
     if (infoDict.containsKey(filesField)) { // Multiple files
@@ -141,55 +141,5 @@ public class TorrentParser {
     }
 
     return fileLengths;
-  }
-
-  private static String byteUrlEncode(byte[] bs) {
-    StringBuffer sb = new StringBuffer(bs.length * 3);
-    for (int i = 0; i < bs.length; i++) {
-      int c = bs[i] & 0xFF;
-      sb.append('%');
-      if (c < 16) {
-        sb.append('0');
-      }
-      sb.append(Integer.toHexString(c));
-    }
-    return sb.toString();
-  }
-
-  public static String hexEncodeURL(String hexString) throws Exception {
-    if (hexString == null || hexString.isEmpty()) {
-      return "";
-    }
-    if (hexString.length() % 2 != 0) {
-      throw new Exception("String is not hex, length NOT divisible by 2: " + hexString);
-    }
-    int len = hexString.length();
-    char[] output = new char[len + len / 2];
-    int i = 0;
-    int j = 0;
-    while (i < len) {
-      output[j++] = '%';
-      output[j++] = hexString.charAt(i++);
-      output[j++] = hexString.charAt(i++);
-    }
-    return new String(output);
-  }
-
-  static final char[] CHAR_FOR_BYTE = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-  };
-  /** Encode byte data as a hex string... hex chars are UPPERCASE */
-  public static String hexEncode(byte[] data) {
-    if (data == null || data.length == 0) {
-      return "";
-    }
-    char[] store = new char[data.length * 2];
-    for (int i = 0; i < data.length; i++) {
-      final int val = (data[i] & 0xFF);
-      final int charLoc = i << 1;
-      store[charLoc] = CHAR_FOR_BYTE[val >>> 4];
-      store[charLoc + 1] = CHAR_FOR_BYTE[val & 0x0F];
-    }
-    return new String(store);
   }
 }

@@ -16,10 +16,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * author: shijie, yuchen
- *
- * <p>Reference:
- * https://github.com/BrightStarry/zx-bt/blob/7bbcf01d613cdb8afc5940b4b6641dcf3996ded6/zx-bt-spider/src/main/java/com/zx/bt/spider/util/Bencode.java
+ * @author shijie, yuchen
+ *     <p>Reference:
+ *     https://github.com/BrightStarry/zx-bt/blob/7bbcf01d613cdb8afc5940b4b6641dcf3996ded6/zx-bt-spider/src/main/java/com/zx/bt/spider/util/Bencode.java
  */
 public class Bencoder {
   private static final String LOG = "[Bencode]";
