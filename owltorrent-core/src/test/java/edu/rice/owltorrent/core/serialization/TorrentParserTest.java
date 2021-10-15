@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.Test;
 
 public class TorrentParserTest {
@@ -42,6 +44,21 @@ public class TorrentParserTest {
   @Test(expected = NullPointerException.class)
   public void extractPieces_nullInput() {
     TorrentParser.extractPieces(null);
+  }
+
+  @Test
+  public void extractPieces_nonNullInput() {
+    byte[] testArray =
+        new String("6:pieces40:1234567890098765432112345678900987654321")
+            .getBytes(StandardCharsets.UTF_8);
+    assertEquals(51, testArray.length);
+
+    TorrentParser testParser = new TorrentParser();
+    testParser.infoPart = testArray;
+    List<byte[]> result = TorrentParser.extractPieces(testArray);
+    assertEquals(2, result.size());
+    assertEquals("12345678900987654321", new String(result.get(0)));
+    assertEquals("12345678900987654321", new String(result.get(1)));
   }
 
   @Test(expected = NullPointerException.class)

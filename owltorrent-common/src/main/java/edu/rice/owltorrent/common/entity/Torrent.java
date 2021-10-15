@@ -34,10 +34,10 @@ public class Torrent {
   }
 
   /**
-   * A string whose length is a multiple of 20. It is to be subdivided into strings of length 20,
-   * each of which is the SHA1 hash of the piece at the corresponding index.
+   * A list of byte array whose length is a multiple of 20. It is to be subdivided into strings of
+   * length 20, each of which is the SHA1 hash of the piece at the corresponding index.
    */
-  private List<String> pieces;
+  private List<byte[]> pieces;
 
   /** The lengths of each file in Torrent. */
   private HashMap<String, Long> fileLengths;

@@ -29,7 +29,7 @@ public class TorrentParser {
   public static final String pathField = "path";
   public static final Bencoder bencoder = new Bencoder();
 
-  private static byte[] infoPart;
+  public static byte[] infoPart;
   /**
    * Bencode a Torrent file and extract important attributes
    *
@@ -68,7 +68,7 @@ public class TorrentParser {
 
     String name = (String) infoDict.get(nameField);
     long pieceLength = (long) infoDict.get(pieceLengthField);
-    List<String> pieces = extractPieces((String) infoDict.get(piecesField));
+    List<byte[]> pieces = extractPieces(infoPart);
     HashMap<String, Long> fileLengths = new HashMap<>();
     if (infoDict.containsKey(filesField)) { // Multiple files
       fileLengths =
@@ -100,24 +100,24 @@ public class TorrentParser {
   /**
    * Extract SHA1 hashes of all the pieces
    *
-   * @param rawPieceData String containing all the piece hashes
+   * @param rawPieceData Raw bytes containing all the piece hashes
    * @return list of SHA1 hashes
    */
-  public static List<String> extractPieces(@NonNull String rawPieceData) {
-    // TODO: do not encode raw bytes here into string
-    List<String> pieces = new ArrayList<>();
+  public static List<byte[]> extractPieces(@NonNull byte[] rawPieceData) {
+    List<byte[]> pieces = new ArrayList<>();
 
-    // Take chunks of size 20 at a time.
-    for (int i = 0; i < rawPieceData.length(); i += 20) {
-      int startIndex = i;
-      int endIndex = Math.min(rawPieceData.length(), i + 20);
+    String rawByte = new String(infoPart, StandardCharsets.UTF_8);
+    int startIndex = rawByte.indexOf("6:pieces"); // Get the start of the pieces key
+    int endIndex = rawByte.indexOf(":", startIndex + 3);
 
-      pieces.add(rawPieceData.substring(startIndex, endIndex));
+    String length =
+        new String(Arrays.copyOfRange(infoPart, startIndex + 8, endIndex), StandardCharsets.UTF_8);
+    int intLength = Integer.parseInt(length);
+
+    for (int i = 0; i < intLength; i += 20) {
+      byte[] temp = Arrays.copyOfRange(infoPart, endIndex + 1 + i, endIndex + 1 + i + 20);
+      pieces.add(temp);
     }
-
-    // TODO: fix bug, piece one off
-    log.info("Found " + pieces.size() + " pieces");
-
     return pieces;
   }
 
