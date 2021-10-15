@@ -4,14 +4,14 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.EqualsAndHashCode;
-import lombok.Value;
+import lombok.ToString;
 
 /**
  * Payloadless Message for Peer Message: 1. Choke 2. Unchoke 3. interested 4. not interested
  *
  * @author: Shijie Fan
  */
-@Value
+@ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class PayloadlessMessage extends PeerMessage {
   public static final int PAYLOADLESS_MESSAGE_SIZE = 1; // 1 byte for type

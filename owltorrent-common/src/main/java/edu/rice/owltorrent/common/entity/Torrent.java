@@ -23,6 +23,16 @@ public class Torrent {
   /** The number of bytes in each piece the file is split into */
   private long pieceLength;
 
+  // TODO: not the most efficient, consider refactoring.
+  /** @return the length of the last piece */
+  public long getLastPieceLength() {
+    long totalLength = 0;
+    for (var entry : fileLengths.entrySet()) {
+      totalLength += entry.getValue();
+    }
+    return totalLength % pieceLength;
+  }
+
   /**
    * A string whose length is a multiple of 20. It is to be subdivided into strings of length 20,
    * each of which is the SHA1 hash of the piece at the corresponding index.
@@ -33,6 +43,7 @@ public class Torrent {
   private HashMap<String, Long> fileLengths;
 
   private TwentyByteId infoHash;
+  //  private String infoHash;
 
   public Torrent() {}
 }

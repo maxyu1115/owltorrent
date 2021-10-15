@@ -1,6 +1,6 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
 import java.io.DataInputStream;
@@ -16,7 +16,7 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Lorraine Lyu, Max Yu
  */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
 
@@ -33,39 +33,35 @@ public class SocketConnector extends PeerConnector {
         public void run() {
           ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
-            try {
-              PeerMessage message = messageReader.readMessage(channel);
-              handleMessage(message);
-            } catch (IOException e) {
-              // TODO: add more error handling.
-              log.error(e);
-            }
+            handleMessage(channel);
           }
         }
       };
 
   private SocketConnector(
       Peer peer,
-      NetworkToStorageAdapter storageAdapter,
+      TorrentManager manager,
+      StorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, storageAdapter, messageReader);
+    super(peer, manager, storageAdapter, messageReader);
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
-      Peer peer, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, StorageAdapter storageAdapter) throws IOException {
     return new SocketConnector(
         peer,
+        manager,
         storageAdapter,
         new SingleThreadBlockingMessageReader(),
         new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
   public static SocketConnector makeRespondingConnection(
-      Peer peer, Socket peerSocket, NetworkToStorageAdapter storageAdapter) throws IOException {
+      Peer peer, TorrentManager manager, Socket peerSocket, StorageAdapter storageAdapter) {
     return new SocketConnector(
-        peer, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
+        peer, manager, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
@@ -81,6 +77,7 @@ public class SocketConnector extends PeerConnector {
     // read and confirm handshake from peer
     byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
     int readByteLength = in.read(incomingHandshakeBuffer);
+    log.info("Read bytes: " + readByteLength);
     if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
         || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
       throw new IOException(
@@ -88,7 +85,6 @@ public class SocketConnector extends PeerConnector {
     }
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
-    listenerThread.getState();
     listenerThread.start();
   }
 
@@ -103,12 +99,12 @@ public class SocketConnector extends PeerConnector {
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
-    listenerThread.getState();
     listenerThread.start();
   }
 
   @Override
   public void writeMessage(PeerMessage message) throws IOException {
+    log.info(message);
     out.write(message.toBytes());
   }
 

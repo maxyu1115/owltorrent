@@ -1,9 +1,10 @@
 package edu.rice.owltorrent.common.entity;
 
-import edu.rice.owltorrent.common.util.AtomicHashableBoolean;
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 /**
@@ -20,9 +21,10 @@ public class Peer {
 
   @Getter private final Torrent torrent;
 
-  private final AtomicHashableBoolean interested = new AtomicHashableBoolean(false);
-  private final AtomicHashableBoolean choked = new AtomicHashableBoolean(true);
-  private final
+  @Getter @Setter private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
+
+  private final AtomicBoolean interested = new AtomicBoolean(false);
+  private final AtomicBoolean choked = new AtomicBoolean(true);
 
   public void setInterested(boolean interested) {
     this.interested.set(interested);
@@ -38,5 +40,14 @@ public class Peer {
 
   public boolean isChoked() {
     return this.choked.get();
+  }
+
+  /**
+   * Returns true if the peer has the piece with specified index.
+   *
+   * @param idx The piece index
+   */
+  public boolean hasPiece(int idx) {
+    return this.bitfield.getBit(idx);
   }
 }

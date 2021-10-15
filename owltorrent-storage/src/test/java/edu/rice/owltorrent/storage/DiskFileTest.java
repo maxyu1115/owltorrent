@@ -3,6 +3,9 @@ package edu.rice.owltorrent.storage;
 import static java.lang.Math.min;
 import static org.junit.Assert.assertEquals;
 
+import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
+import edu.rice.owltorrent.common.util.Exceptions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,8 +24,8 @@ public class DiskFileTest {
    */
   @Test
   public void writingToDiskWorks()
-      throws IOException, DiskFile.IllegalByteOffsets, DiskFile.FileAlreadyExistsException,
-          DiskFile.FileCouldNotBeCreatedException {
+      throws IOException, Exceptions.IllegalByteOffsets, Exceptions.FileAlreadyExistsException,
+          Exceptions.FileCouldNotBeCreatedException {
     String testFileName = "writingToDiskTestFile";
     Path testFilePath = Paths.get(testFileName);
     int numBytes = 193;
@@ -47,14 +50,14 @@ public class DiskFileTest {
             min(blockSize, min(pieceSize - blockOffset, numBytes - blockOffset - startOffset));
         byte[] blockData = new byte[currentBlockSize];
         Arrays.fill(blockData, (byte) piece);
-        testFile.writeBlock(piece, blockOffset, blockData);
+        testFile.writeBlock(new FileBlock(piece, blockOffset, blockData));
       }
     }
 
     // Read the file back piece by piece and make sure it is as expected
     for (int piece = 0; piece < numBytes / pieceSize + 1; piece++) {
       int pieceLength = min(pieceSize, numBytes - piece * pieceSize);
-      byte[] fileBytes = testFile.readBlock(piece, 0, pieceLength);
+      byte[] fileBytes = testFile.readBlock(new FileBlockInfo(piece, 0, pieceLength));
       for (int i = 0; i < pieceLength; i++) {
         assertEquals(piece, fileBytes[i]);
       }

@@ -4,6 +4,7 @@ import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
+import lombok.Getter;
 
 /**
  * Bitfield Message for Peer Messaging
@@ -13,7 +14,7 @@ import java.util.BitSet;
 public class BitfieldMessage extends PeerMessage {
 
   public static final int BASE_SIZE = 1;
-  public Bitfield bitfield;
+  @Getter private Bitfield bitfield;
 
   public BitfieldMessage(Bitfield bitfield) {
     super(MessageType.BITFIELD);

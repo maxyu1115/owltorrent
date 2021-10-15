@@ -1,6 +1,5 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.interfaces.TorrentRepository;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 /** @author Lorraine Lyu */
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 @RequiredArgsConstructor
 public class HandShakeListener implements Runnable {
   private final TorrentRepository torrentRepository;

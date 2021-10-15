@@ -1,7 +1,10 @@
 package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.adapters.NetworkToStorageAdapter;
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
+import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.BitfieldMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -14,11 +17,12 @@ import lombok.extern.log4j.Log4j2;
  * @author Lorraine Lyu, Max Yu
  */
 @RequiredArgsConstructor
-@Log4j2(topic = "general")
+@Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
-  protected final NetworkToStorageAdapter storageAdapter;
-
+  // TODO: bad practice, should eventually refactor
+  protected final TorrentManager manager;
+  protected final StorageAdapter storageAdapter;
   protected final MessageReader messageReader;
 
   /**
@@ -68,10 +72,25 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case HAVE:
       case BITFIELD:
+        peer.setBitfield(((BitfieldMessage) message).getBitfield());
       case REQUEST:
         break;
       case PIECE:
-        storageAdapter.write(peer.getTorrent(), ((PieceMessage) message).getFileBlock());
+        FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
+        if (manager.validateAndReportBlockInProgress(fileBlock)) {
+          try {
+            log.info(
+                "Trying to write file block "
+                    + fileBlock.getPieceIndex()
+                    + " "
+                    + fileBlock.getOffsetWithinPiece());
+            storageAdapter.write(fileBlock);
+            manager.reportBlockCompletion(fileBlock);
+          } catch (Exceptions.IllegalByteOffsets | IOException blockWriteException) {
+            log.error(blockWriteException);
+            manager.reportBlockFailed(fileBlock);
+          }
+        }
         break;
       case CANCEL:
       default:

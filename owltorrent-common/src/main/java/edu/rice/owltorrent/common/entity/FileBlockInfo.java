@@ -9,7 +9,7 @@ import lombok.Data;
  */
 @Data
 public class FileBlockInfo {
-  protected final int index;
-  protected final int begin;
-  protected final long length;
+  protected final int pieceIndex;
+  protected final int offsetWithinPiece;
+  protected final int length;
 }

@@ -1,6 +1,5 @@
-package edu.rice.owltorrent.common.interfaces;
+package edu.rice.owltorrent.network;
 
-import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.util.Optional;
 
@@ -13,9 +12,9 @@ public interface TorrentRepository {
   /**
    * Registers the torrent file
    *
-   * @param torrent the torrent file
+   * @param torrent the torrent manager
    */
-  void registerTorrent(Torrent torrent);
+  void registerTorrentManager(TorrentManager torrent);
 
   /**
    * Retrieves the torrent specified by its info hash
@@ -23,5 +22,5 @@ public interface TorrentRepository {
    * @param infoHash the info hash of that torrent
    * @return Optional of the Torrent when found. empty otherwise
    */
-  Optional<Torrent> retrieveTorrent(TwentyByteId infoHash);
+  Optional<TorrentManager> retrieveTorrent(TwentyByteId infoHash);
 }

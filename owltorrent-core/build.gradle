@@ -7,4 +7,14 @@ dependencies {
     compile project(":owltorrent-storage")
 
     compile group: 'com.dampcake', name: 'bencode', version: bencodeVersion
+    compile 'info.picocli:picocli:4.6.1'
+}
+jar {
+    manifest {
+        attributes 'Main-Class': 'edu.rice.owltorrent.core.ClientCLI'
+    }
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
