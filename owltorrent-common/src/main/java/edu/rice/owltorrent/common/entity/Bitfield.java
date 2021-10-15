@@ -21,6 +21,11 @@ public class Bitfield {
     return this.bitSet.get(actualIndex);
   }
 
+  public void setBit(int index) {
+    int actualIndex = 8 * ((index / 8) * 2 + 1) - 1 - index;
+    this.bitSet.set(actualIndex);
+  }
+
   /**
    * Note: The return value is NOT the total piece length. Returns the number of bits of space for
    * the bitset.

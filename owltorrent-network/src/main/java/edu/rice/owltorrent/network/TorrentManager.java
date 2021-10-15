@@ -293,10 +293,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   Bitfield buildBitfield() {
-    BitSet bitset = new BitSet(totalPieces);
+    Bitfield bitfield = new Bitfield(new BitSet(totalPieces));
     for (Integer i : completedPieces) {
-      bitset.set(i);
+      bitfield.setBit(i);
     }
-    return new Bitfield(bitset);
+    return bitfield;
   }
 }
