@@ -48,16 +48,18 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
       buffer = ByteBuffer.allocate(PeerMessage.LENGTH_FIELD_SIZE + pstrLength);
       buffer.put(old);
     }
+    // log.debug(Arrays.toString(buffer.array()));
 
     int totalReadBytes = 0;
     while (totalReadBytes < pstrLength) {
       readBytes = inputChannel.read(buffer);
+      //      log.debug(Arrays.toString(buffer.array()));
       if (readBytes < 0) {
         log.debug("connection is closed by other peer");
         return null;
       }
       totalReadBytes += readBytes;
-      log.info("Total read bytes " + totalReadBytes);
+      log.debug("Total read bytes " + totalReadBytes);
     }
     log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();

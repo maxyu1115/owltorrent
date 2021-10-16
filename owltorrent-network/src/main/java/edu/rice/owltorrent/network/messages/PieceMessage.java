@@ -5,6 +5,7 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -13,6 +14,7 @@ import lombok.Value;
  * @author Max Yu
  */
 @Value
+@ToString
 @EqualsAndHashCode(callSuper = true)
 public class PieceMessage extends PeerMessage {
 

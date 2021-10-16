@@ -164,10 +164,10 @@ public abstract class PeerMessage {
       if (infoHash[i - HANDSHAKE_INFO_HASH_INDEX] != buffer[i]) return false;
     }
 
-    byte[] peerId = peer.getPeerID().getBytes();
-    for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
-      if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
-    }
+    // byte[] peerId = peer.getPeerID().getBytes();
+    // for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
+    //  if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
+    // }
 
     return true;
   }

@@ -6,7 +6,6 @@ import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -16,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -27,7 +27,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public class TorrentManager implements Runnable, AutoCloseable {
 
-  private static final int DEFAULT_BLOCK_NUM = 8;
+  private static final int DEFAULT_BLOCK_NUM = 4;
 
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
@@ -45,11 +45,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public TorrentManager(Torrent file, StorageAdapter adapter) {
     this.torrent = file;
+    //    file.setInfoHash(
+    //        new TwentyByteId(hexStringToByteArray("9365831f36cea330d5683ca3a474a16a59670285")));
+    //    file.setInfoHash(
+    //        new TwentyByteId(hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
     file.setInfoHash(
-        new TwentyByteId(hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
+        new TwentyByteId(hexStringToByteArray("9d136d107b6b3b6f83abf1f5f41acb568804da32")));
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
-    this.totalPieces = torrent.getPieces().size() + 1;
+    this.totalPieces = 105;
 
     for (int idx = 0; idx < totalPieces; idx++) {
       this.notStartedPieces.add(idx);
@@ -57,11 +61,17 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     this.peers = new ConcurrentHashMap<>();
 
+    //    initPeers(
+    //        List.of(
+    //            new Peer(
+    //                TwentyByteId.fromString("OwlTorrentUser123456"),
+    //                new InetSocketAddress("168.5.38.24", 57447),
+    //                torrent)));
     initPeers(
         List.of(
             new Peer(
                 TwentyByteId.fromString("OwlTorrentUser123456"),
-                new InetSocketAddress("168.5.60.91", 6881),
+                new InetSocketAddress("168.5.43.240", 6881),
                 torrent)));
   }
 
@@ -74,7 +84,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         connector.initiateConnection();
         addPeer(connector, peer);
         // TODO: revise
-        connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+        // connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
       } catch (IOException e) {
         e.printStackTrace(System.err);
         log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
@@ -125,8 +135,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
+  @SneakyThrows
   @Override
   public void run() {
+    //  List<Map.Entry<Peer, PeerConnector>> connections = new ArrayList<>(peers.entrySet());
+    //  connections
+    //      .get(0)
+    //      .getValue()
+    //      .writeMessage(PieceActionMessage.makeRequestMessage(0, 4096, 2048));
+
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're assuming all our peers are seeders
       // Request a missing piece from each Peer
@@ -196,6 +213,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
    *     expected
    */
   public boolean validateAndReportBlockInProgress(FileBlockInfo blockInfo) {
+    //    return true;
     if (completedPieces.contains(blockInfo.getPieceIndex())) {
       log.debug("block already finished downloading");
       return false;
