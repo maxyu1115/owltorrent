@@ -107,6 +107,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   private void requestBlockFromPeer(Peer peer, PieceStatus pieceStatus, int blockIndex) {
+    if (peer.isPeerChoked() && !peer.isPeerInterested()) return;
+
     PeerConnector peerConnector = peers.get(peer);
     if (peerConnector == null) {
       return;
