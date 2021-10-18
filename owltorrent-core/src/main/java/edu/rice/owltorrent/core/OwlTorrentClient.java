@@ -27,7 +27,7 @@ public class OwlTorrentClient {
     Torrent torrent;
     try {
       torrent = TorrentParser.parse(torrentFile);
-    } catch (IOException e) {
+    } catch (Exception e) {
       throw new Exceptions.ParsingTorrentFileFailedException();
     }
     StorageAdapter adapter = createStorageAdapter(torrent);
