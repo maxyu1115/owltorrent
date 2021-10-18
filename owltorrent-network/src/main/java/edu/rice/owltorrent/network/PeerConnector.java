@@ -7,7 +7,9 @@ import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -21,7 +23,10 @@ public abstract class PeerConnector implements AutoCloseable {
   protected final Peer peer;
   // TODO: bad practice, should eventually refactor
   protected final TorrentManager manager;
+
+  @Setter(AccessLevel.PACKAGE)
   protected StorageAdapter storageAdapter;
+
   protected final MessageReader messageReader;
 
   /**
@@ -37,10 +42,6 @@ public abstract class PeerConnector implements AutoCloseable {
    * @throws IOException when connection fails
    */
   protected abstract void respondToConnection() throws IOException;
-
-  void setStorageAdapter(StorageAdapter adapter) {
-    this.storageAdapter = adapter;
-  }
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 

@@ -32,14 +32,14 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
       byte[] handShakeBuffer = new byte[68];
       if (in.read(handShakeBuffer) != 68) {
-        log.info("Received invalid handshake.");
+        log.warn("Received invalid handshake.");
+        return;
       }
       Optional<TorrentManager> torrentManager = verifyHandShake(handShakeBuffer);
       if (torrentManager.isEmpty()) {
         return;
       }
 
-      // TODO: fill in NetworkToStorage adapter and messageReader.
       Peer peer = getPeer(handShakeBuffer, torrentManager.get());
       SocketConnector connector =
           SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket);

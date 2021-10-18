@@ -5,23 +5,20 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * The TorrentRepository Implementation.
+ *
+ * @author Lorraine Lyu
+ */
 @Log4j2(topic = "general")
 public class TorrentRepositoryImpl implements TorrentRepository {
-  private ConcurrentHashMap<TwentyByteId, TorrentManager> infoHashToTorrentManager;
-
-  public TorrentRepositoryImpl() {
-    infoHashToTorrentManager = new ConcurrentHashMap<>();
-  }
+  private final ConcurrentHashMap<TwentyByteId, TorrentManager> infoHashToTorrentManager =
+      new ConcurrentHashMap<>();
 
   @Override
   public void registerTorrentManager(TorrentManager manager) {
     TwentyByteId infoHash = manager.getTorrent().getInfoHash();
-    /* This conditional should not be triggered in any case. */
-    if (infoHashToTorrentManager.containsKey(infoHash)) {
-      log.error("Torrent manager for torrent {} already exist.", manager.getTorrent().getName());
-      return;
-    }
-    this.infoHashToTorrentManager.put(infoHash, manager);
+    this.infoHashToTorrentManager.putIfAbsent(infoHash, manager);
   }
 
   /**
