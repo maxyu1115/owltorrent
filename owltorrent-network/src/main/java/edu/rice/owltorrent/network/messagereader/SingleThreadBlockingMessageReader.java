@@ -53,7 +53,7 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
     int totalReadBytes = 0;
     while (totalReadBytes < pstrLength) {
       readBytes = inputChannel.read(buffer);
-      //      log.debug(Arrays.toString(buffer.array()));
+      log.debug(Arrays.toString(buffer.array()));
       if (readBytes < 0) {
         log.debug("connection is closed by other peer");
         return null;

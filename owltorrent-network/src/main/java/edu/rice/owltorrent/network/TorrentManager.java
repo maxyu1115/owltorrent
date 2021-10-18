@@ -138,43 +138,40 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @SneakyThrows
   @Override
   public void run() {
-    //  List<Map.Entry<Peer, PeerConnector>> connections = new ArrayList<>(peers.entrySet());
-    //  connections
-    //      .get(0)
-    //      .getValue()
-    //      .writeMessage(PieceActionMessage.makeRequestMessage(0, 4096, 2048));
+    List<Map.Entry<Peer, PeerConnector>> connections = new ArrayList<>(peers.entrySet());
+    connections.get(0).getValue().writeMessage(PieceActionMessage.makeRequestMessage(1, 4096, 16));
 
-    while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
-      // TODO: here we're assuming all our peers are seeders
-      // Request a missing piece from each Peer
-      List<Peer> connections = new ArrayList<>(peers.keySet());
-      Collections.shuffle(connections);
-
-      for (PieceStatus progress : uncompletedPieces.values()) {
-        for (int i = 0; i < progress.status.size(); i++) {
-          if (connections.isEmpty()) break;
-
-          if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
-            continue;
-          }
-
-          requestBlockFromPeer(connections.remove(0), progress, i);
-        }
-        if (connections.isEmpty()) break;
-      }
-      while (!connections.isEmpty() && !notStartedPieces.isEmpty()) {
-        int notStartedIndex = notStartedPieces.remove();
-        PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
-        uncompletedPieces.put(notStartedIndex, newPieceStatus);
-        requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
-      }
-
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        log.error(e);
-      }
-    }
+    //    while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
+    //      // TODO: here we're assuming all our peers are seeders
+    //      // Request a missing piece from each Peer
+    //      List<Peer> connections = new ArrayList<>(peers.keySet());
+    //      Collections.shuffle(connections);
+    //
+    //      for (PieceStatus progress : uncompletedPieces.values()) {
+    //        for (int i = 0; i < progress.status.size(); i++) {
+    //          if (connections.isEmpty()) break;
+    //
+    //          if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
+    //            continue;
+    //          }
+    //
+    //          requestBlockFromPeer(connections.remove(0), progress, i);
+    //        }
+    //        if (connections.isEmpty()) break;
+    //      }
+    //      while (!connections.isEmpty() && !notStartedPieces.isEmpty()) {
+    //        int notStartedIndex = notStartedPieces.remove();
+    //        PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+    //        uncompletedPieces.put(notStartedIndex, newPieceStatus);
+    //        requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+    //      }
+    //
+    //      try {
+    //        Thread.sleep(100);
+    //      } catch (InterruptedException e) {
+    //        log.error(e);
+    //      }
+    //    }
   }
 
   private PieceStatus makeNewPieceStatus(int pieceIndex) {
@@ -213,63 +210,64 @@ public class TorrentManager implements Runnable, AutoCloseable {
    *     expected
    */
   public boolean validateAndReportBlockInProgress(FileBlockInfo blockInfo) {
-    //    return true;
-    if (completedPieces.contains(blockInfo.getPieceIndex())) {
-      log.debug("block already finished downloading");
-      return false;
-    }
-
-    PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex());
-    int blockIndex = blockInfo.getOffsetWithinPiece() / status.blockLength;
-
-    if (isLastBlock(status, blockIndex)) {
-      if (blockInfo.getLength() != ((int) torrent.getLastPieceLength()) % status.blockLength) {
-        log.warn(
-            "Block length invalid for final piece: expected [{}], found [{}]",
-            ((int) torrent.getLastPieceLength()) % status.blockLength,
-            blockInfo.getLength());
-        return false;
-      }
-    } else {
-      if (status.blockLength != blockInfo.getLength()) {
-        log.warn(
-            "Block length invalid: expected [{}], found [{}]",
-            status.blockLength,
-            blockInfo.getLength());
-        return false;
-      }
-    }
-
-    return status.status.get(blockIndex).compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
+    return true;
+    //    if (completedPieces.contains(blockInfo.getPieceIndex())) {
+    //      log.debug("block already finished downloading");
+    //      return false;
+    //    }
+    //
+    //    PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex());
+    //    int blockIndex = blockInfo.getOffsetWithinPiece() / status.blockLength;
+    //
+    //    if (isLastBlock(status, blockIndex)) {
+    //      if (blockInfo.getLength() != ((int) torrent.getLastPieceLength()) % status.blockLength)
+    // {
+    //        log.warn(
+    //            "Block length invalid for final piece: expected [{}], found [{}]",
+    //            ((int) torrent.getLastPieceLength()) % status.blockLength,
+    //            blockInfo.getLength());
+    //        return false;
+    //      }
+    //    } else {
+    //      if (status.blockLength != blockInfo.getLength()) {
+    //        log.warn(
+    //            "Block length invalid: expected [{}], found [{}]",
+    //            status.blockLength,
+    //            blockInfo.getLength());
+    //        return false;
+    //      }
+    //    }
+    //
+    //    return status.status.get(blockIndex).compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
   }
 
   public void reportBlockCompletion(FileBlockInfo blockInfo) {
-    PieceStatus status = uncompletedPieces.get(blockInfo.getPieceIndex());
-    if (status == null) {
-      log.error("Block missing from uncompletedPieces: " + blockInfo);
-      throw new IllegalStateException("Block missing from uncompletedPieces: " + blockInfo);
-    }
-
-    if (status
-        .status
-        .get(blockInfo.getOffsetWithinPiece() / status.blockLength)
-        .compareAndSet(BLOCK_IN_PROGRESS, BLOCK_DONE)) {
-      for (AtomicInteger blockStatus : status.status) {
-        if (blockStatus.get() != BLOCK_DONE) {
-          log.info(
-              "Block "
-                  + blockInfo.getOffsetWithinPiece() / status.blockLength
-                  + " not done for piece number "
-                  + blockInfo.getPieceIndex());
-          // return if any block is not done
-          return;
-        }
-      }
-      // TODO: add piece hash verification here
-      // if all blocks are done, move the piece to the completed set.
-      uncompletedPieces.remove(blockInfo.getPieceIndex());
-      completedPieces.add(blockInfo.getPieceIndex());
-    }
+    //    PieceStatus status = uncompletedPieces.get(blockInfo.getPieceIndex());
+    //    if (status == null) {
+    //      log.error("Block missing from uncompletedPieces: " + blockInfo);
+    //      throw new IllegalStateException("Block missing from uncompletedPieces: " + blockInfo);
+    //    }
+    //
+    //    if (status
+    //        .status
+    //        .get(blockInfo.getOffsetWithinPiece() / status.blockLength)
+    //        .compareAndSet(BLOCK_IN_PROGRESS, BLOCK_DONE)) {
+    //      for (AtomicInteger blockStatus : status.status) {
+    //        if (blockStatus.get() != BLOCK_DONE) {
+    //          log.info(
+    //              "Block "
+    //                  + blockInfo.getOffsetWithinPiece() / status.blockLength
+    //                  + " not done for piece number "
+    //                  + blockInfo.getPieceIndex());
+    //          // return if any block is not done
+    //          return;
+    //        }
+    //      }
+    //      // TODO: add piece hash verification here
+    //      // if all blocks are done, move the piece to the completed set.
+    //      uncompletedPieces.remove(blockInfo.getPieceIndex());
+    //      completedPieces.add(blockInfo.getPieceIndex());
+    //    }
   }
 
   public void reportBlockFailed(FileBlockInfo blockInfo) {
