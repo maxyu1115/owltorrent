@@ -4,16 +4,18 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
+import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Getter;
-import lombok.extern.log4j.Log4j2;
 
 /**
  * Manager that takes care of everything related to a Torrent. The TorrentManager will manage the
@@ -43,10 +45,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public TorrentManager(Torrent file, StorageAdapter adapter) {
     this.torrent = file;
+    torrent.setInfoHash(new TwentyByteId(hexStringToByteArray("32310b4db84de5c023bfcb9f40648d8c9e7ca16e")));
     this.networkStorageAdapter = adapter;
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
     this.totalPieces = torrent.getPieces().size();
-
 
     for (int idx = 0; idx < totalPieces; idx++) {
       this.notStartedPieces.add(idx);
@@ -63,10 +65,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   private List<Peer> getPeerList() {
+    torrent.setAnnounceURL("https://torrent.ubuntu.com/announce?");
+
     List<InetSocketAddress> peerAddress = this.peerLocator.locatePeers(this.torrent);
     List<Peer> peers = new ArrayList<>();
     for (InetSocketAddress addr : peerAddress) {
-      peers.add(new Peer(null, addr, this.torrent));
+      peers.add(new Peer(TwentyByteId.fromString(PeerLocator.peerID), addr, this.torrent));
     }
     return peers;
   }
@@ -74,17 +78,26 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private void initPeers(List<Peer> peerList) {
     // TODO: potentially make async?
     for (Peer peer : peerList) {
-      try {
-        PeerConnector connector =
-            SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
-        connector.initiateConnection();
-        addPeer(connector, peer);
-        // TODO: revise
-        connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
-      } catch (IOException e) {
-        e.printStackTrace(System.err);
-        log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
-      }
+      new Thread(
+              () -> {
+                try {
+
+                  PeerConnector connector =
+                          SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+                  log.info("made initial connection");
+                  connector.initiateConnection();
+                  log.info("handshaked peer: " + peer);
+                  addPeer(connector, peer);
+                  connector.writeMessage(
+                          new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+
+                  // TODO: revise
+                } catch (IOException e) {
+                  e.printStackTrace(System.err);
+                  log.error(
+                          String.format("Error connecting peer id=%s", peer.getAddress()));
+                }
+              }).start();
     }
   }
 

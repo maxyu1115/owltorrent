@@ -3,6 +3,8 @@ package edu.rice.owltorrent.network;
 import com.dampcake.bencode.BencodeInputStream;
 import com.google.common.io.ByteStreams;
 import edu.rice.owltorrent.common.entity.Torrent;
+import lombok.NonNull;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -12,7 +14,6 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import lombok.NonNull;
 
 /**
  * Tracker connector to fetch peers.
@@ -35,7 +36,9 @@ public class PeerLocator {
 
     try {
       // Build request
-      String baseURL = "https://torrent.ubuntu.com/announce?"; // TODO: retrieve from torrent
+      // String baseURL = "https://torrent.ubuntu.com/announce?"; // TODO: retrieve from
+      String baseURL = torrent.getAnnounceURL(); // TODO: retrieve from torrent
+
       String request =
           baseURL
               + "info_hash="
@@ -79,6 +82,7 @@ public class PeerLocator {
 
         InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
         addresses.add(inetSocketAddress);
+        System.out.println(inetSocketAddress.toString());
       }
     } catch (Exception e) {
       e.printStackTrace();

@@ -3,13 +3,14 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
+import lombok.extern.log4j.Log4j2;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import lombok.extern.log4j.Log4j2;
 
 /**
  * Socket implementation of PeerConnector class.
