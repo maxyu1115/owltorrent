@@ -7,6 +7,7 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,6 +33,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
   private final Queue<Integer> notStartedPieces;
+  private final PeerLocator peerLocator = new PeerLocator();
 
   private final int totalPieces;
 
@@ -45,6 +47,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.notStartedPieces = new ConcurrentLinkedQueue<>();
     this.totalPieces = torrent.getPieces().size();
 
+
     for (int idx = 0; idx < totalPieces; idx++) {
       this.notStartedPieces.add(idx);
     }
@@ -57,6 +60,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
     //            TwentyByteId.fromString("OwlTorrentUser123456"),
     //            new InetSocketAddress("168.5.58.18", 6881),
     //            torrent)));
+  }
+
+  private List<Peer> getPeerList() {
+    List<InetSocketAddress> peerAddress = this.peerLocator.locatePeers(this.torrent);
+    List<Peer> peers = new ArrayList<>();
+    for (InetSocketAddress addr : peerAddress) {
+      peers.add(new Peer(null, addr, this.torrent));
+    }
+    return peers;
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -121,6 +133,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   @Override
   public void run() {
+    initPeers(getPeerList());
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're assuming all our peers are seeders
       // Request a missing piece from each Peer
