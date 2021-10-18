@@ -91,6 +91,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   // For handshake listener
   // Later if get updated peerlist from tracker.
   public void addPeer(PeerConnector connector, Peer peer) {
+    connector.setStorageAdapter(networkStorageAdapter);
     this.peers.put(peer, connector);
   }
 

@@ -44,7 +44,15 @@ public class SocketConnector extends PeerConnector {
       StorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, manager, storageAdapter, messageReader);
+    super(peer, manager, messageReader);
+    this.setStorageAdapter(storageAdapter);
+    this.peerSocket = peerSocket;
+  }
+
+  /** Called when storageAdapter is unknown to the caller. */
+  private SocketConnector(
+      Peer peer, TorrentManager manager, MessageReader messageReader, Socket peerSocket) {
+    super(peer, manager, messageReader);
     this.peerSocket = peerSocket;
   }
 
@@ -59,9 +67,8 @@ public class SocketConnector extends PeerConnector {
   }
 
   public static SocketConnector makeRespondingConnection(
-      Peer peer, TorrentManager manager, Socket peerSocket, StorageAdapter storageAdapter) {
-    return new SocketConnector(
-        peer, manager, storageAdapter, new SingleThreadBlockingMessageReader(), peerSocket);
+      Peer peer, TorrentManager manager, Socket peerSocket) {
+    return new SocketConnector(peer, manager, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
