@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
@@ -7,6 +8,7 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -23,7 +25,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public class TorrentManager implements Runnable, AutoCloseable {
 
-  private static final int DEFAULT_BLOCK_NUM = 2;
+  private static final int DEFAULT_BLOCK_NUM = 8;
 
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
@@ -161,8 +163,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
       log.error("Piece length not divisible by block num");
       throw new IllegalStateException("Piece length not divisible by block num");
     }
-    return new PieceStatus(
-        pieceIndex, DEFAULT_BLOCK_NUM, (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM);
+    int blockLength = (int) torrent.getPieceLength() / DEFAULT_BLOCK_NUM;
+    int blockNum =
+        pieceIndex < totalPieces - 1
+            ? DEFAULT_BLOCK_NUM
+            : IntMath.divide((int) torrent.getLastPieceLength(), blockLength, RoundingMode.CEILING);
+    return new PieceStatus(pieceIndex, blockNum, blockLength);
   }
 
   private PieceStatus getOrInitPieceStatus(int pieceIndex) {
