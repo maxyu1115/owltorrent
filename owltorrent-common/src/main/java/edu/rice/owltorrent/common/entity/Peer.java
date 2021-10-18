@@ -4,7 +4,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.ToString;
 
 /**
@@ -21,7 +20,7 @@ public class Peer {
 
   @Getter private final Torrent torrent;
 
-  @Getter @Setter private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
+  @Getter private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 
   private final AtomicBoolean interested = new AtomicBoolean(false);
   private final AtomicBoolean choked = new AtomicBoolean(true);
@@ -49,5 +48,12 @@ public class Peer {
    */
   public boolean hasPiece(int idx) {
     return this.bitfield.getBit(idx);
+  }
+
+  public void setBitfield(Bitfield bitfield) {
+    if (this.bitfield != Bitfield.EMPTY_BITFIELD_SINGLETON) {
+      throw new IllegalArgumentException("Peer's bitfield already set.");
+    }
+    this.bitfield = bitfield;
   }
 }

@@ -2,10 +2,15 @@ package edu.rice.owltorrent.common.entity;
 
 import java.util.BitSet;
 
+/**
+ * Represents a bitfield.
+ *
+ * @author Lorraine Lyu
+ */
 public class Bitfield {
-  public BitSet bitSet;
+  private final BitSet bitSet;
   /** For peers who don't send a bitfield message. */
-  public static final EmptyBitfield EMPTY_BITFIELD_SINGLETON = new EmptyBitfield();
+  public static final Bitfield EMPTY_BITFIELD_SINGLETON = new EmptyBitfield();
 
   public Bitfield(BitSet bitSet) {
     this.bitSet = bitSet;
@@ -21,6 +26,11 @@ public class Bitfield {
     return this.bitSet.get(actualIndex);
   }
 
+  /**
+   * Sets the bit at given index location to true.
+   *
+   * @param index
+   */
   public void setBit(int index) {
     int actualIndex = 8 * ((index / 8) * 2 + 1) - 1 - index;
     this.bitSet.set(actualIndex);
@@ -38,6 +48,7 @@ public class Bitfield {
     return this.bitSet.toByteArray();
   }
 
+  /** @return The number of bits set to true in the bitfield. */
   public int cardinality() {
     return this.bitSet.cardinality();
   }
@@ -51,6 +62,11 @@ public class Bitfield {
     @Override
     public boolean getBit(int index) {
       return true;
+    }
+
+    @Override
+    public void setBit(int index) {
+      throw new UnsupportedOperationException("Cannot set bit on an empty bitfield.");
     }
   }
 }
