@@ -5,7 +5,6 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Bencoder;
 import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import lombok.NonNull;
@@ -29,7 +28,6 @@ public class TorrentParser {
   public static final String pathField = "path";
   public static final Bencoder bencoder = new Bencoder();
 
-  public static byte[] infoPart;
   /**
    * Bencode a Torrent file and extract important attributes
    *
@@ -50,7 +48,6 @@ public class TorrentParser {
    */
   public static Map<String, Object> bencode(@NonNull File file) throws Exception {
     byte[] input = Files.readAllBytes(file.toPath());
-    infoPart = input;
     Map<String, Object> dict = (Map<String, Object>) bencoder.decodeAny(input, 0).getValue();
 
     return dict;
@@ -63,12 +60,12 @@ public class TorrentParser {
    * @return pruned Torrent object
    */
   public static Torrent extractAttributes(@NonNull Map<String, Object> dict) {
-    String announceURL = (String) dict.get(announceField);
+    String announceURL = new String((byte[]) dict.get(announceField));
     Map<String, Object> infoDict = (Map<String, Object>) dict.get(infoField);
 
-    String name = (String) infoDict.get(nameField);
+    String name = new String((byte[]) infoDict.get(nameField));
     long pieceLength = (long) infoDict.get(pieceLengthField);
-    List<byte[]> pieces = extractPieces(infoPart);
+    List<byte[]> pieces = extractPieces(infoDict);
     HashMap<String, Long> fileLengths = new HashMap<>();
     if (infoDict.containsKey(filesField)) { // Multiple files
       fileLengths =
@@ -77,16 +74,8 @@ public class TorrentParser {
       fileLengths.put(name, (Long) infoDict.get(lengthField));
     }
 
-    String infoHashString = bencoder.encodeDict(infoDict);
-    int startIndex =
-        new String(infoPart, StandardCharsets.UTF_8)
-            .indexOf("4:info"); // Get the start of the info dict
-    byte[] infoHashBytes =
-        Arrays.copyOfRange(
-            infoPart,
-            startIndex + 6,
-            startIndex + 7 + infoHashString.length()); // Retrieve the original info dict
-    byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashBytes);
+    byte[] infoHashString = bencoder.encodeDict(infoDict);
+    byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashString);
 
     return new Torrent(
         announceURL,
@@ -100,22 +89,15 @@ public class TorrentParser {
   /**
    * Extract SHA1 hashes of all the pieces
    *
-   * @param rawPieceData Raw bytes containing all the piece hashes
+   * @param infoDict a dictionary matching the info attribute of the torrent file
    * @return list of SHA1 hashes
    */
-  public static List<byte[]> extractPieces(@NonNull byte[] rawPieceData) {
+  public static List<byte[]> extractPieces(@NonNull Map<String, Object> infoDict) {
     List<byte[]> pieces = new ArrayList<>();
+    byte[] rawPieces = (byte[]) infoDict.get(piecesField);
 
-    String rawByte = new String(infoPart, StandardCharsets.UTF_8);
-    int startIndex = rawByte.indexOf("6:pieces"); // Get the start of the pieces key
-    int endIndex = rawByte.indexOf(":", startIndex + 3);
-
-    String length =
-        new String(Arrays.copyOfRange(infoPart, startIndex + 8, endIndex), StandardCharsets.UTF_8);
-    int intLength = Integer.parseInt(length);
-
-    for (int i = 0; i < intLength; i += 20) {
-      byte[] temp = Arrays.copyOfRange(infoPart, endIndex + 1 + i, endIndex + 1 + i + 20);
+    for (int i = 0; i < rawPieces.length; i += 20) {
+      byte[] temp = Arrays.copyOfRange(rawPieces, i, i + 20);
       pieces.add(temp);
     }
     return pieces;
