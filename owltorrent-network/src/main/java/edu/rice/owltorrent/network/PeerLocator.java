@@ -3,16 +3,14 @@ package edu.rice.owltorrent.network;
 import com.dampcake.bencode.BencodeInputStream;
 import com.google.common.io.ByteStreams;
 import edu.rice.owltorrent.common.entity.Torrent;
+import lombok.NonNull;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import lombok.NonNull;
 
 /**
  * Tracker connector to fetch peers.
@@ -30,7 +28,33 @@ public class PeerLocator {
   public static final String uploaded = "0";
   public static final String compact = "1";
 
+  /**
+   * Determine which protocol to use and then retrieve peers accordingly
+   *
+   * @param torrent Torrent object
+   * @return list of peer addresses
+   */
   public List<InetSocketAddress> locatePeers(@NonNull Torrent torrent) {
+    String announceUrl = torrent.getAnnounceURL();
+    String protocol = announceUrl.split(":")[0];
+
+    if (protocol.equals("http")) {
+      return locateWithHTTPTracker(torrent);
+    } else if (protocol.equals("udp")) {
+      return locateWithUDPTracker(torrent);
+    } else {
+      System.out.println("Unsupported protocol");
+      return null;
+    }
+  }
+
+  /**
+   * Retrieve peers from HTTP tracker
+   *
+   * @param torrent Torrent object
+   * @return list of peer addresses
+   */
+  public List<InetSocketAddress> locateWithHTTPTracker(@NonNull Torrent torrent) {
     List<InetSocketAddress> addresses = new ArrayList<>();
 
     try {
@@ -80,6 +104,76 @@ public class PeerLocator {
         InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
         addresses.add(inetSocketAddress);
       }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return addresses;
+  }
+
+  /**
+   * Retrieve peers from UDP tracker
+   *
+   * @param torrent Torrent object
+   * @return list of peer addresses
+   */
+  public List<InetSocketAddress> locateWithUDPTracker(@NonNull Torrent torrent) {
+    List<InetSocketAddress> addresses = new ArrayList<>();
+
+    try {
+      // Create socket on any available port.
+      DatagramSocket datagramSocket = new DatagramSocket();
+
+      // Set up Inet URL to connect to.
+      String host = "tracker.openbittorrent.com"; // TODO: retrieve from torrent
+      int urlPort = 80;
+      InetAddress baseURL = InetAddress.getByName(host);
+      System.out.println(baseURL.toString());
+
+      // Set up connection with tracker.
+      datagramSocket.connect(baseURL, urlPort);
+
+      // Create connectRequestPacket
+      byte[] connectRequestData = new byte[16];
+      long protocol_id = 0x41727101980L;
+      int action = 0;
+      int transaction_id = 12345;
+      connectRequestData[0] = (byte) protocol_id;
+      connectRequestData[8] = (byte) action;
+      connectRequestData[12] = (byte) transaction_id;
+
+      DatagramPacket connectRequestPacket = new DatagramPacket(connectRequestData, connectRequestData.length);
+
+      // Create connectResponsePacket
+      byte[] connectResponseData = new byte[16];
+      DatagramPacket connectResponsePacket = new DatagramPacket(connectResponseData, connectResponseData.length);
+
+      System.out.println("trying to connect to socket...");
+
+      // Try connecting up to 8 times
+      for (int i = 0; i < 8; i++) {
+        datagramSocket.setSoTimeout((int) (15000 * Math.pow(2, i))); // Timeout is 15 * 2 ^ n seconds.
+        System.out.println(i + "th attempt trying to connect to tracker.");
+
+        try {
+          datagramSocket.send(connectRequestPacket);
+          datagramSocket.receive(connectResponsePacket);
+          break;
+        } catch (SocketTimeoutException s) {
+          if (i == 7) { // Couldn't connect after 8 attempts.
+            return null;
+          }
+          continue;
+        }
+      }
+
+      System.out.println("got back response from socket!");
+
+      byte[] connectResponse = connectResponsePacket.getData();
+      System.out.println(connectResponse);
+
+      // TODO: announce connection
+
     } catch (Exception e) {
       e.printStackTrace();
     }

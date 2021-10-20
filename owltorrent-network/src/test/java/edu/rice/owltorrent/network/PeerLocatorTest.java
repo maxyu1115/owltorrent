@@ -6,10 +6,17 @@ import org.junit.Test;
 public class PeerLocatorTest {
 
   @Test
-  public void locatePeers() {
+  public void locateWithHTTPTracker() {
     Torrent torrent = new Torrent();
     PeerLocator peerLocator = new PeerLocator();
-    peerLocator.locatePeers(torrent);
+    peerLocator.locateWithHTTPTracker(torrent);
+  }
+
+  @Test
+  public void locateWithUDPTracker() {
+    Torrent torrent = new Torrent();
+    PeerLocator peerLocator = new PeerLocator();
+    peerLocator.locateWithUDPTracker(torrent);
   }
 
   @Test(expected = NullPointerException.class)
