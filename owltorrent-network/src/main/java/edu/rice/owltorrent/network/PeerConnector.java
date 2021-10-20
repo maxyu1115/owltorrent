@@ -3,6 +3,7 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
@@ -20,6 +21,7 @@ import lombok.extern.log4j.Log4j2;
 @RequiredArgsConstructor
 @Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
+  protected final TwentyByteId ourPeerId;
   protected final Peer peer;
   // TODO: bad practice, should eventually refactor
   protected final TorrentManager manager;

@@ -4,6 +4,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.HandShakeListener;
@@ -23,9 +24,18 @@ public class OwlTorrentClient {
     float getPercentDone();
   }
 
+  private static final String OWL_TORRENT_ID_PREFIX = "OwlTorrent";
+
   private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
   private HandShakeListener handShakeListener;
   private int listenerPort = 6881;
+
+  private final TwentyByteId ourPeerId;
+
+  public OwlTorrentClient() {
+    // TODO: generate an actual id
+    ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+  }
 
   void startSeeding() {
     this.handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
@@ -43,7 +53,7 @@ public class OwlTorrentClient {
       throw new Exceptions.ParsingTorrentFileFailedException();
     }
     StorageAdapter adapter = createStorageAdapter(torrent);
-    TorrentManager manager = new TorrentManager(torrent, adapter);
+    TorrentManager manager = new TorrentManager(ourPeerId, torrent, adapter);
     manager.startDownloadingAsynchronously();
     return manager::getProgressPercent;
   }

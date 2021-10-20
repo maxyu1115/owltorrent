@@ -3,18 +3,18 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.entity.Torrent;
 import org.junit.Test;
 
-public class PeerLocatorTest {
+public class HttpTrackerConnectorTest {
 
   @Test
   public void locatePeers() {
     Torrent torrent = new Torrent();
-    PeerLocator peerLocator = new PeerLocator();
-    peerLocator.locatePeers(torrent);
+    HttpTrackerConnector httpTrackerConnector = new HttpTrackerConnector();
+    httpTrackerConnector.locatePeers(torrent);
   }
 
   @Test(expected = NullPointerException.class)
   public void locatePeers_nullInput() {
-    PeerLocator peerLocator = new PeerLocator();
-    peerLocator.locatePeers(null);
+    HttpTrackerConnector httpTrackerConnector = new HttpTrackerConnector();
+    httpTrackerConnector.locatePeers(null);
   }
 }

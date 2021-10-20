@@ -2,6 +2,7 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -39,26 +40,32 @@ public class SocketConnector extends PeerConnector {
       };
 
   private SocketConnector(
+      TwentyByteId ourPeerId,
       Peer peer,
       TorrentManager manager,
       StorageAdapter storageAdapter,
       MessageReader messageReader,
       Socket peerSocket) {
-    super(peer, manager, messageReader);
+    super(ourPeerId, peer, manager, messageReader);
     this.setStorageAdapter(storageAdapter);
     this.peerSocket = peerSocket;
   }
 
   /** Called when storageAdapter is unknown to the caller. */
   private SocketConnector(
-      Peer peer, TorrentManager manager, MessageReader messageReader, Socket peerSocket) {
-    super(peer, manager, messageReader);
+      TwentyByteId ourPeerId,
+      Peer peer,
+      TorrentManager manager,
+      MessageReader messageReader,
+      Socket peerSocket) {
+    super(ourPeerId, peer, manager, messageReader);
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
       Peer peer, TorrentManager manager, StorageAdapter storageAdapter) throws IOException {
     return new SocketConnector(
+        manager.getOurPeerId(),
         peer,
         manager,
         storageAdapter,
@@ -68,7 +75,8 @@ public class SocketConnector extends PeerConnector {
 
   public static SocketConnector makeRespondingConnection(
       Peer peer, TorrentManager manager, Socket peerSocket) {
-    return new SocketConnector(peer, manager, new SingleThreadBlockingMessageReader(), peerSocket);
+    return new SocketConnector(
+        manager.getOurPeerId(), peer, manager, new SingleThreadBlockingMessageReader(), peerSocket);
   }
 
   @Override
@@ -79,7 +87,7 @@ public class SocketConnector extends PeerConnector {
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
-    this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
+    this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
 
     // read and confirm handshake from peer
     byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
@@ -93,6 +101,7 @@ public class SocketConnector extends PeerConnector {
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
     listenerThread.start();
+    initiated = true;
   }
 
   @Override
@@ -103,10 +112,11 @@ public class SocketConnector extends PeerConnector {
     this.in = new DataInputStream(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
-    this.out.write(PeerMessage.constructHandShakeMessage(this.peer));
+    this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
     // listen for input with busy waiting
     listenerThread = new Thread(listenForInput);
     listenerThread.start();
+    initiated = true;
   }
 
   @Override
