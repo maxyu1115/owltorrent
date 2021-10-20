@@ -80,6 +80,12 @@ public class OwlTorrentClient {
       public void write(FileBlock fileBlock) throws Exceptions.IllegalByteOffsets, IOException {
         diskFile.writeBlock(fileBlock);
       }
+
+      @Override
+      public boolean verify(int pieceIndex, byte[] sha1Hash)
+          throws Exceptions.IllegalByteOffsets, IOException {
+        return diskFile.pieceHashCorrect(pieceIndex, sha1Hash);
+      }
     };
   }
 }

@@ -15,4 +15,6 @@ public interface StorageAdapter {
   ;
 
   void write(FileBlock fileBlock) throws Exceptions.IllegalByteOffsets, IOException;
+
+  boolean verify(int pieceIndex, byte[] sha1Hash) throws Exceptions.IllegalByteOffsets, IOException;
 }
