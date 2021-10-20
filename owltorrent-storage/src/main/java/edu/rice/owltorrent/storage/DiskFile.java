@@ -3,6 +3,7 @@ package edu.rice.owltorrent.storage;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -154,6 +155,34 @@ public class DiskFile {
    */
   public void finishFile() throws IOException {
     file.close();
+  }
+
+  /**
+   * Checks whether a piece on disk has a SHA1 hash equal to the passed in hash, returns true if
+   * this is the case and false otherwise. Note that this will return false either if incorrect
+   * (possible malicious or corrupted) data was written to this piece, or just if the piece has not
+   * been entirely written to yet (the external user needs to manager and track which pieces are
+   * completed, and call this method when they are).
+   *
+   * @param pieceNum The piece number to check
+   * @param expectedHash The expected hash of the piece
+   * @return True if the piece hash on disk is correct
+   * @throws Exceptions.IllegalByteOffsets If the passed in piece is invalid
+   * @throws IOException If seeking or reading from disk fails
+   */
+  public synchronized boolean pieceHashCorrect(long pieceNum, byte[] expectedHash)
+      throws Exceptions.IllegalByteOffsets, IOException {
+    long pieceByteStart = pieceNum * pieceSize;
+    if (pieceByteStart < 0 || pieceByteStart >= numBytes) {
+      throw new Exceptions.IllegalByteOffsets("Piece num is less than 0 or too large.");
+    }
+
+    int pieceLength = (int) Math.min(pieceSize, numBytes - pieceByteStart);
+    byte[] actualBytes = new byte[pieceLength];
+    file.seek(pieceByteStart);
+    file.read(actualBytes);
+
+    return SHA1Encryptor.isSHA1HashEqual(actualBytes, expectedHash);
   }
 
   /** Returns whether the input file currently exists */

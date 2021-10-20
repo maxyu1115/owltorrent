@@ -5,6 +5,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
@@ -53,12 +54,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     this.peers = new ConcurrentHashMap<>();
 
-    // initPeers(
-    //    List.of(
-    //        new Peer(
-    //            TwentyByteId.fromString("OwlTorrentUser123456"),
-    //            new InetSocketAddress("168.5.58.18", 6881),
-    //            torrent)));
+    //    initPeers(
+    //        List.of(
+    //            new Peer(
+    //                TwentyByteId.fromString("OwlTorrentUser123456"),
+    //                new InetSocketAddress("127.0.0.1", 57447),
+    //                torrent)));
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -223,7 +224,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   public void reportBlockCompletion(FileBlockInfo blockInfo) {
-    PieceStatus status = uncompletedPieces.get(blockInfo.getPieceIndex());
+    int pieceIndex = blockInfo.getPieceIndex();
+    PieceStatus status = uncompletedPieces.get(pieceIndex);
     if (status == null) {
       log.error("Block missing from uncompletedPieces: " + blockInfo);
       throw new IllegalStateException("Block missing from uncompletedPieces: " + blockInfo);
@@ -239,15 +241,28 @@ public class TorrentManager implements Runnable, AutoCloseable {
               "Block "
                   + blockInfo.getOffsetWithinPiece() / status.blockLength
                   + " not done for piece number "
-                  + blockInfo.getPieceIndex());
+                  + pieceIndex);
           // return if any block is not done
           return;
         }
       }
-      // TODO: add piece hash verification here
-      // if all blocks are done, move the piece to the completed set.
-      uncompletedPieces.remove(blockInfo.getPieceIndex());
-      completedPieces.add(blockInfo.getPieceIndex());
+
+      uncompletedPieces.remove(pieceIndex);
+      boolean valid = true;
+      try {
+        valid = networkStorageAdapter.verify(pieceIndex, torrent.getPieces().get(pieceIndex));
+      } catch (Exceptions.IllegalByteOffsets | IOException e) {
+        log.error(e);
+        e.printStackTrace();
+      }
+      if (!valid) {
+        for (AtomicInteger blockStatus : status.status) {
+          blockStatus.set(BLOCK_NOT_STARTED);
+        }
+        uncompletedPieces.put(pieceIndex, status);
+      } else {
+        completedPieces.add(pieceIndex);
+      }
     }
   }
 
