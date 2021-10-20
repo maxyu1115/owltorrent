@@ -2,10 +2,12 @@ package edu.rice.owltorrent.storage;
 
 import static java.lang.Math.min;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,6 +64,45 @@ public class DiskFileTest {
         assertEquals(piece, fileBytes[i]);
       }
     }
+
+    // Close the file
+    testFile.finishFile();
+
+    // Delete the file to clean up
+    Files.delete(Paths.get(testFileName));
+  }
+
+  /**
+   * A basic test that writes out a piece that we know the sha1hash of and then verifies that piece.
+   */
+  @Test
+  public void hashVerificationWorks()
+      throws IOException, Exceptions.IllegalByteOffsets, Exceptions.FileAlreadyExistsException,
+          Exceptions.FileCouldNotBeCreatedException {
+    String testFileName = "hashTestFile";
+    Path testFilePath = Paths.get(testFileName);
+    int numBytes = 100; // One block one piece
+
+    // Delete the file if it already exists. Ignore exceptions because we do not care if it does not
+    // exist.
+    try {
+      Files.delete(testFilePath);
+    } catch (Exception ignored) {
+    }
+
+    byte[] dataToWrite = new byte[numBytes];
+    for (int i = 0; i < numBytes; i++) {
+      dataToWrite[i] = (byte) i;
+    }
+
+    byte[] expectedSHAHash = SHA1Encryptor.encrypt(dataToWrite);
+
+    // Write to the file so every byte equals its corresponding piece number
+    DiskFile testFile = new DiskFile(testFileName, numBytes, numBytes);
+    testFile.writeBlock(new FileBlock(0, 0, dataToWrite));
+
+    // Verify piece
+    assertTrue(testFile.pieceHashCorrect(0, expectedSHAHash));
 
     // Close the file
     testFile.finishFile();
