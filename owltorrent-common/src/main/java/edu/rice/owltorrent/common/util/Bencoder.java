@@ -3,10 +3,7 @@ package edu.rice.owltorrent.common.util;
 import edu.rice.owltorrent.common.util.Exceptions.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -51,7 +48,7 @@ public class Bencoder {
     functions[3] = (bytes, start) -> decodeList(bytes, start);
   }
 
-  public MethodResult<String> decodeString(byte[] bytes, int start) {
+  public MethodResult<byte[]> decodeString(byte[] bytes, int start) {
     if (start >= bytes.length || bytes[start] < '0' || bytes[start] > '9')
       throw new BTException(LOG + "String:" + start);
 
@@ -69,8 +66,7 @@ public class Bencoder {
 
     int endIndex = separatorIndex + strLen + 1;
     if (separatorIndex > bytes.length) throw new BTException(LOG + "String:" + start);
-    return new MethodResult<>(
-        new String(ArrayUtils.subarray(bytes, separatorIndex + 1, endIndex), charset), endIndex);
+    return new MethodResult<>(ArrayUtils.subarray(bytes, separatorIndex + 1, endIndex), endIndex);
   }
 
   public MethodResult<Long> decodeInt(byte[] bytes, int start) {
@@ -122,7 +118,7 @@ public class Bencoder {
 
       if (!StringUtils.isNumeric(item)) throw new BTException(LOG + "Dict:" + start);
 
-      MethodResult<String> keyMethodResult = decodeString(bytes, i);
+      MethodResult<byte[]> keyMethodResult = decodeString(bytes, i);
 
       i = keyMethodResult.index;
 
@@ -130,7 +126,7 @@ public class Bencoder {
 
       i = valueMethodResult.index;
 
-      result.put(keyMethodResult.value, valueMethodResult.value);
+      result.put(new String(keyMethodResult.value, charset), valueMethodResult.value);
     }
     if (i == bytes.length) throw new BTException(LOG + "Dict:" + start);
     return new MethodResult<>(result, ++i);
@@ -151,45 +147,72 @@ public class Bencoder {
     return (T) decodeAny(bytes, 0).value;
   }
 
-  public String encodeString(String string) {
-    return string.length() + ":" + string;
+  public byte[] encodeString(byte[] string) {
+    String prefix = string.length + ":";
+    byte[] prefixArray = prefix.getBytes(StandardCharsets.UTF_8);
+    byte[] result = Arrays.copyOf(prefixArray, prefixArray.length + string.length);
+    System.arraycopy(string, 0, result, prefixArray.length, string.length);
+    return result;
   }
 
-  public String encodeLong(long i) {
-    return intTypePre + i + typeSuf;
+  public byte[] encodeLong(long i) {
+    String result = intTypePre + i + typeSuf;
+    return result.getBytes(StandardCharsets.UTF_8);
   }
 
-  public String encodeList(List<Object> list) {
-    String[] result = new String[list.size() + 2];
-    result[0] = listTypePre;
+  public byte[] encodeList(List<Object> list) {
+    byte[][] result = new byte[list.size() + 2][];
+    result[0] = listTypePre.getBytes(StandardCharsets.UTF_8);
     for (int i = 1; i <= list.size(); i++) {
       result[i] = encodeAny(list.get(i - 1));
     }
-    result[result.length - 1] = typeSuf;
+    result[result.length - 1] = typeSuf.getBytes(StandardCharsets.UTF_8);
 
-    return String.join("", result);
+    return joinArray(result);
   }
 
-  public String encodeDict(Map<String, Object> map) {
-    String[] result = new String[map.size() + 2];
-    result[0] = dictTypePre;
-    result[result.length - 1] = typeSuf;
+  public byte[] encodeDict(Map<String, Object> map) {
+    byte[][] result = new byte[map.size() + 2][];
+    result[0] = dictTypePre.getBytes(StandardCharsets.UTF_8);
+    result[result.length - 1] = typeSuf.getBytes(StandardCharsets.UTF_8);
     int i = 1;
     for (Map.Entry<String, Object> entry : map.entrySet()) {
-      result[i++] = encodeString(entry.getKey()) + encodeAny(entry.getValue());
+      byte[] key = encodeString(entry.getKey().getBytes(StandardCharsets.UTF_8));
+      byte[] value = encodeAny(entry.getValue());
+      result[i] = Arrays.copyOf(key, key.length + value.length);
+      System.arraycopy(value, 0, result[i], key.length, value.length);
+      i++;
     }
-    return String.join("", result);
+    return joinArray(result);
+  }
+
+  private static byte[] joinArray(byte[][] input) {
+    int totalLength = 0;
+    for (byte[] array : input) {
+      totalLength += array.length;
+    }
+
+    byte[] result = Arrays.copyOf(input[0], totalLength);
+    int offset = input[0].length;
+    for (int i = 1; i < input.length; i++) {
+      System.arraycopy(input[i], 0, result, offset, input[i].length);
+      offset += input[i].length;
+    }
+
+    return result;
   }
 
   @SuppressWarnings("unchecked")
-  public String encodeAny(Object obj) {
+  public byte[] encodeAny(Object obj) {
     try {
       if (obj instanceof Integer) {
         return encodeLong(Integer.toUnsignedLong((int) obj));
       } else if (obj instanceof Long) {
         return encodeLong((long) obj);
       } else if (obj instanceof String) {
-        return encodeString((String) obj);
+        return encodeString(((String) obj).getBytes(StandardCharsets.UTF_8));
+      } else if (obj instanceof byte[]) {
+        return encodeString((byte[]) obj);
       } else if (obj instanceof Map) {
         return encodeDict((Map<String, Object>) obj);
       } else if (obj instanceof List) {
@@ -207,10 +230,6 @@ public class Bencoder {
   /** string to bytes */
   public byte[] toBytes(String string) {
     return string.getBytes(charset);
-  }
-
-  public byte[] encode(Object obj) {
-    return toBytes(encodeAny(obj));
   }
 
   @Getter
