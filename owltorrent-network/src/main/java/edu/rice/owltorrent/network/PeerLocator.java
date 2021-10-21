@@ -3,14 +3,14 @@ package edu.rice.owltorrent.network;
 import com.dampcake.bencode.BencodeInputStream;
 import com.google.common.io.ByteStreams;
 import edu.rice.owltorrent.common.entity.Torrent;
-import lombok.NonNull;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import lombok.NonNull;
 
 /**
  * Tracker connector to fetch peers.
@@ -125,38 +125,40 @@ public class PeerLocator {
       DatagramSocket datagramSocket = new DatagramSocket();
 
       // Set up Inet URL to connect to.
-      String host = "tracker.openbittorrent.com"; // TODO: retrieve from torrent
-      int urlPort = 80;
-      InetAddress baseURL = InetAddress.getByName(host);
+      var tracker = URI.create("udp://tracker.openbittorrent.com:80/announce");
+      InetSocketAddress baseURL = new InetSocketAddress(tracker.getHost(), tracker.getPort());
       System.out.println(baseURL.toString());
 
       // Set up connection with tracker.
-      datagramSocket.connect(baseURL, urlPort);
+      datagramSocket.connect(baseURL);
 
       // Create connectRequestPacket
-      byte[] connectRequestData = new byte[16];
+      ByteBuffer connectRequestData = ByteBuffer.allocate(16);
       long protocol_id = 0x41727101980L;
-      int action = 0;
+      int action = 1;
       int transaction_id = 12345;
-      connectRequestData[0] = (byte) protocol_id;
-      connectRequestData[8] = (byte) action;
-      connectRequestData[12] = (byte) transaction_id;
+      connectRequestData.putLong(protocol_id);
+      connectRequestData.putInt(action);
+      connectRequestData.putInt(transaction_id);
 
-      DatagramPacket connectRequestPacket = new DatagramPacket(connectRequestData, connectRequestData.length);
-
+      DatagramPacket connectRequestPacket =
+          new DatagramPacket(connectRequestData.array(), connectRequestData.capacity(), baseURL);
       // Create connectResponsePacket
       byte[] connectResponseData = new byte[16];
-      DatagramPacket connectResponsePacket = new DatagramPacket(connectResponseData, connectResponseData.length);
+      DatagramPacket connectResponsePacket =
+          new DatagramPacket(connectResponseData, connectResponseData.length);
 
       System.out.println("trying to connect to socket...");
 
       // Try connecting up to 8 times
       for (int i = 0; i < 8; i++) {
-        datagramSocket.setSoTimeout((int) (15000 * Math.pow(2, i))); // Timeout is 15 * 2 ^ n seconds.
+        datagramSocket.setSoTimeout(
+            (int) (15000 * Math.pow(2, i))); // Timeout is 15 * 2 ^ n seconds.
         System.out.println(i + "th attempt trying to connect to tracker.");
 
         try {
           datagramSocket.send(connectRequestPacket);
+          System.out.println("successfully sent");
           datagramSocket.receive(connectResponsePacket);
           break;
         } catch (SocketTimeoutException s) {
