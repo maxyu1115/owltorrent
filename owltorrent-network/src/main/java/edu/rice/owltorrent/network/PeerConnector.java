@@ -20,19 +20,23 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Lorraine Lyu, Max Yu
  */
-@RequiredArgsConstructor
 @Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
-  protected final TwentyByteId ourPeerId;
-  protected final Peer peer;
-  // TODO: bad practice, should eventually refactor
-  protected final TorrentManager manager;
+  protected TwentyByteId ourPeerId;
+  protected  Peer peer;
+  protected TorrentManager manager;
 
   @Setter(AccessLevel.PACKAGE)
   protected StorageAdapter storageAdapter;
 
-  protected final MessageReader messageReader;
+  protected MessageReader messageReader;
 
+  public PeerConnector(TwentyByteId ourPeerId, Peer peer, TorrentManager manager, MessageReader messageReader) {
+    this.ourPeerId = ourPeerId;
+    this.peer = peer;
+    this.manager = manager;
+    this.messageReader = messageReader;
+  }
   /**
    * Connects to the remote peer. Normally this would involve handshaking them.
    *
@@ -82,12 +86,15 @@ public abstract class PeerConnector implements AutoCloseable {
       case BITFIELD:
         break;
       case REQUEST:
+        if (!((PieceActionMessage) message).verify(manager.getTorrent())) {
+          log.error("Invalid Request Messgae");
+          // TODO: close connection?
+          break;
+        }
         // Verify if the piece exists
         int index = ((PieceActionMessage) message).getIndex();
         int begin = ((PieceActionMessage) message).getBegin();
-        int length =
-            ((PieceActionMessage) message)
-                .getLength(); // TODO: when > 2e14, we need to close connection as protocol states
+        int length = ((PieceActionMessage) message).getLength();
         FileBlock piece;
         try {
           piece = storageAdapter.read(new FileBlockInfo(index, begin, length));
