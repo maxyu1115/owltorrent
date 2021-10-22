@@ -2,9 +2,11 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -78,7 +80,25 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case HAVE:
       case BITFIELD:
+        break;
       case REQUEST:
+        // Verify if the piece exists
+        int index = ((PieceActionMessage) message).getIndex();
+        int begin = ((PieceActionMessage) message).getBegin();
+        int length =
+            ((PieceActionMessage) message)
+                .getLength(); // TODO: when > 2e14, we need to close connection as protocol states
+        FileBlock piece;
+        try {
+          piece = storageAdapter.read(new FileBlockInfo(index, begin, length));
+          // Send the piece
+          writeMessage(
+              new PieceMessage(
+                  piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
+        } catch (Exceptions.IllegalByteOffsets | IOException blockReadException) {
+          log.error(blockReadException);
+          // TODO: close connection?
+        }
         break;
       case PIECE:
         FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
