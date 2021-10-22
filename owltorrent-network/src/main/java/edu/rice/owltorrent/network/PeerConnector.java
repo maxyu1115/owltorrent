@@ -11,7 +11,6 @@ import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
@@ -23,7 +22,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
   protected TwentyByteId ourPeerId;
-  protected  Peer peer;
+  protected Peer peer;
   protected TorrentManager manager;
 
   @Setter(AccessLevel.PACKAGE)
@@ -31,7 +30,8 @@ public abstract class PeerConnector implements AutoCloseable {
 
   protected MessageReader messageReader;
 
-  public PeerConnector(TwentyByteId ourPeerId, Peer peer, TorrentManager manager, MessageReader messageReader) {
+  public PeerConnector(
+      TwentyByteId ourPeerId, Peer peer, TorrentManager manager, MessageReader messageReader) {
     this.ourPeerId = ourPeerId;
     this.peer = peer;
     this.manager = manager;
