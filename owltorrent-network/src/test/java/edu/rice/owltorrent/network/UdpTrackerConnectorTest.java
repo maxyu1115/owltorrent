@@ -5,24 +5,25 @@ import static junit.framework.TestCase.fail;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class HttpTrackerConnectorTest {
+public class UdpTrackerConnectorTest {
 
   @Test
-  public void locateWithHTTPTracker() {
+  public void locateWithUDPTracker_Success() {
     Torrent torrent = new Torrent();
-    torrent.setAnnounceURL("https://torrent.ubuntu.com/announce?");
     torrent.setInfoHash(
         new TwentyByteId(
-            TorrentManager.hexStringToByteArray("32310b4db84de5c023bfcb9f40648d8c9e7ca16e")));
+            TorrentManager.hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
+    torrent.setAnnounceURL("udp://tracker.openbittorrent.com:80/announce");
 
     try {
-      HttpTrackerConnector peerLocator = new HttpTrackerConnector();
-      peerLocator.locateWithHTTPTracker(torrent);
+      UdpTrackerConnector peerLocator = new UdpTrackerConnector();
+      peerLocator.locateWithUDPTracker(torrent);
     } catch (Exception e) {
       fail();
     }
@@ -45,19 +46,25 @@ public class HttpTrackerConnectorTest {
 
   @Test(expected = NullPointerException.class)
   public void locatePeers_nullInput() {
-    HttpTrackerConnector peerLocator = new HttpTrackerConnector();
+    UdpTrackerConnector peerLocator = new UdpTrackerConnector();
     peerLocator.locatePeers(null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void locateWithHTTPTracker_nullInput() throws Exception {
-    HttpTrackerConnector peerLocator = new HttpTrackerConnector();
-    peerLocator.locateWithHTTPTracker(null);
+  public void locateWithUDPTracker_nullInput() throws IOException {
+    UdpTrackerConnector peerLocator = new UdpTrackerConnector();
+    peerLocator.locateWithUDPTracker(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void communicateWithSocket_nullInput() throws IOException {
+    UdpTrackerConnector peerLocator = new UdpTrackerConnector();
+    peerLocator.communicateWithSocket(null, null, null);
   }
 
   @Test(expected = NullPointerException.class)
   public void createPeers_nullInput() throws UnknownHostException {
-    HttpTrackerConnector peerLocator = new HttpTrackerConnector();
+    UdpTrackerConnector peerLocator = new UdpTrackerConnector();
     peerLocator.createPeers(null, null);
   }
 }
