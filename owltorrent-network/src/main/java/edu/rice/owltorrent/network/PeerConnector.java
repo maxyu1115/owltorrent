@@ -2,14 +2,15 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
@@ -18,19 +19,24 @@ import lombok.extern.log4j.Log4j2;
  *
  * @author Lorraine Lyu, Max Yu
  */
-@RequiredArgsConstructor
 @Log4j2(topic = "network")
 public abstract class PeerConnector implements AutoCloseable {
-  protected final TwentyByteId ourPeerId;
-  protected final Peer peer;
-  // TODO: bad practice, should eventually refactor
-  protected final TorrentManager manager;
+  protected TwentyByteId ourPeerId;
+  protected Peer peer;
+  protected TorrentManager manager;
 
   @Setter(AccessLevel.PACKAGE)
   protected StorageAdapter storageAdapter;
 
-  protected final MessageReader messageReader;
+  protected MessageReader messageReader;
 
+  public PeerConnector(
+      TwentyByteId ourPeerId, Peer peer, TorrentManager manager, MessageReader messageReader) {
+    this.ourPeerId = ourPeerId;
+    this.peer = peer;
+    this.manager = manager;
+    this.messageReader = messageReader;
+  }
   /**
    * Connects to the remote peer. Normally this would involve handshaking them.
    *
@@ -78,7 +84,28 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case HAVE:
       case BITFIELD:
+        break;
       case REQUEST:
+        if (!((PieceActionMessage) message).verify(manager.getTorrent())) {
+          log.error("Invalid Request Messgae");
+          // TODO: close connection?
+          break;
+        }
+        // Verify if the piece exists
+        int index = ((PieceActionMessage) message).getIndex();
+        int begin = ((PieceActionMessage) message).getBegin();
+        int length = ((PieceActionMessage) message).getLength();
+        FileBlock piece;
+        try {
+          piece = storageAdapter.read(new FileBlockInfo(index, begin, length));
+          // Send the piece
+          writeMessage(
+              new PieceMessage(
+                  piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
+        } catch (Exceptions.IllegalByteOffsets | IOException blockReadException) {
+          log.error(blockReadException);
+          // TODO: close connection?
+        }
         break;
       case PIECE:
         FileBlock fileBlock = ((PieceMessage) message).getFileBlock();

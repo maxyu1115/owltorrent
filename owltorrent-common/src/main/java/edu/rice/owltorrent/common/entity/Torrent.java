@@ -30,7 +30,7 @@ public class Torrent {
     for (var entry : fileLengths.entrySet()) {
       totalLength += entry.getValue();
     }
-    return totalLength % pieceLength;
+    return totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength;
   }
 
   /**
