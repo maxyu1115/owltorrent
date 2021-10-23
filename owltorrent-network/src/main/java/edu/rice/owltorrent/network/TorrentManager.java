@@ -11,11 +11,15 @@ import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
 import java.math.RoundingMode;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -26,8 +30,13 @@ import lombok.extern.log4j.Log4j2;
  */
 @Log4j2(topic = "network")
 public class TorrentManager implements Runnable, AutoCloseable {
+  @RequiredArgsConstructor
+  private static class PeerConnectionContext {
+    final PeerConnector peerConnector;
+    final AtomicBoolean waitingForRequest = new AtomicBoolean(false);
+  }
 
-  private static final int DEFAULT_BLOCK_NUM = 8;
+  private static final int DEFAULT_BLOCK_NUM = 2;
 
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
@@ -40,7 +49,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final int totalPieces;
 
   @Getter private final TwentyByteId ourPeerId;
-  private final Map<Peer, PeerConnector> peers;
+  private final Map<Peer, PeerConnectionContext> peers;
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
@@ -57,12 +66,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     this.peers = new ConcurrentHashMap<>();
 
-    //    initPeers(
-    //        List.of(
-    //            new Peer(
-    //                TwentyByteId.fromString("OwlTorrentUser123456"),
-    //                new InetSocketAddress("127.0.0.1", 57447),
-    //                torrent)));
+    initPeers(List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), torrent)));
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -96,18 +100,19 @@ public class TorrentManager implements Runnable, AutoCloseable {
   // Later if get updated peerlist from tracker.
   public void addPeer(PeerConnector connector, Peer peer) {
     connector.setStorageAdapter(networkStorageAdapter);
-    this.peers.put(peer, connector);
+    this.peers.put(peer, new PeerConnectionContext(connector));
   }
 
   @Override
   public void close() throws Exception {
     for (var pair : peers.entrySet()) {
-      pair.getValue().close();
+      pair.getValue().peerConnector.close();
     }
   }
 
   private void requestBlockFromPeer(Peer peer, PieceStatus pieceStatus, int blockIndex) {
-    PeerConnector peerConnector = peers.get(peer);
+    PeerConnectionContext peerContext = peers.get(peer);
+    PeerConnector peerConnector = peerContext.peerConnector;
     if (peerConnector == null) {
       return;
     }
@@ -118,6 +123,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
       if (isLastBlock(pieceStatus, blockIndex)) {
         actualBlockSize = ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
       }
+      // Only write request when not waiting
+      peerContext.waitingForRequest.compareAndExchange(false, true);
       peerConnector.writeMessage(
           PieceActionMessage.makeRequestMessage(
               pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
@@ -131,7 +138,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're assuming all our peers are seeders
       // Request a missing piece from each Peer
-      List<Peer> connections = new ArrayList<>(peers.keySet());
+      List<Peer> connections =
+          peers.keySet().stream()
+              .filter(peer -> !peers.get(peer).waitingForRequest.get())
+              .collect(Collectors.toList());
       Collections.shuffle(connections);
 
       for (PieceStatus progress : uncompletedPieces.values()) {
@@ -154,7 +164,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       }
 
       try {
-        Thread.sleep(100);
+        Thread.sleep(10);
       } catch (InterruptedException e) {
         log.error(e);
       }
@@ -196,7 +206,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @return false if another thread already started to download that block or the block size is not
    *     expected
    */
-  public boolean validateAndReportBlockInProgress(FileBlockInfo blockInfo) {
+  public boolean validateAndReportBlockInProgress(Peer peer, FileBlockInfo blockInfo) {
+    peers.get(peer).waitingForRequest.set(false);
     if (completedPieces.contains(blockInfo.getPieceIndex())) {
       log.debug("block already finished downloading");
       return false;
