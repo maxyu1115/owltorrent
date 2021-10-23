@@ -6,24 +6,22 @@ import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import lombok.NonNull;
 
 /**
- * Tracker connector to fetch peers.
+ * HTTP tracker connector to fetch peers.
  *
  * @author bhaveshshah
  */
 public class HttpTrackerConnector implements PeerLocator {
 
-  public static final String infoHash =
-      "%32%31%0b%4d%b8%4d%e5%c0%23%bf%cb%9f%40%64%8d%8c%9e%7c%a1%6e"; // TODO: retrieve from torrent
+  //  public static final String infoHash =
+  //          "%32%31%0b%4d%b8%4d%e5%c0%23%bf%cb%9f%40%64%8d%8c%9e%7c%a1%6e"; // TODO: retrieve from
+  // torrent
   public static final String peerID = "owltorrentclientpeer";
   public static final String port = "6991";
   public static final String left = "0";
@@ -31,59 +29,96 @@ public class HttpTrackerConnector implements PeerLocator {
   public static final String uploaded = "0";
   public static final String compact = "1";
 
-  @Override
+  /**
+   * Determine which protocol to use and then retrieve peers accordingly
+   *
+   * @param torrent Torrent object
+   * @return list of peers
+   */
   public List<Peer> locatePeers(@NonNull Torrent torrent) {
+    try {
+      List<Peer> peers = locateWithHTTPTracker(torrent);
+      return peers;
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /**
+   * Retrieve peers from HTTP tracker
+   *
+   * @param torrent Torrent object
+   * @return list of peers
+   */
+  public List<Peer> locateWithHTTPTracker(@NonNull Torrent torrent) throws Exception {
     List<Peer> peers = new ArrayList<>();
 
-    try {
-      // Build request
-      String baseURL = "https://torrent.ubuntu.com/announce?"; // TODO: retrieve from torrent
-      String request =
-          baseURL
-              + "info_hash="
-              + infoHash
-              + "&peer_id="
-              + peerID
-              + "&port="
-              + port
-              + "&left="
-              + left
-              + "&downloaded="
-              + downloaded
-              + "&uploaded="
-              + uploaded
-              + "&compact="
-              + compact;
+    String baseURL = torrent.getAnnounceURL();
+    String request =
+        baseURL
+            + "info_hash="
+            + torrent.getInfoHash().hexEncodeURL()
+            + "&peer_id="
+            + peerID
+            + "&port="
+            + port
+            + "&left="
+            + left
+            + "&downloaded="
+            + downloaded
+            + "&uploaded="
+            + uploaded
+            + "&compact="
+            + compact;
 
-      // Set up connection with tracker
-      URL url = new URL(request);
-      URLConnection connection = url.openConnection();
+    // Set up connection with tracker
+    URL url = new URL(request);
+    URLConnection connection = url.openConnection();
 
-      // Read bytes from tracker
-      InputStream is = connection.getInputStream();
-      byte[] bytes = ByteStreams.toByteArray(is);
+    // Read bytes from tracker
+    InputStream is = connection.getInputStream();
+    byte[] bytes = ByteStreams.toByteArray(is);
 
-      // Bencode tracker response
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-      BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
-      var dict = bencodeInputStream.readDictionary();
+    // Bencode tracker response
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+    BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
+    var dict = bencodeInputStream.readDictionary();
 
-      // Extract peers from bencoded dictionary.
-      String peerInfo = (String) dict.get("peers");
-      byte[] peersAsBytes = peerInfo.getBytes();
+    // Retrieve peers from bencoded dictionary and then extract addresses
+    String peersField = (String) dict.get("peers");
+    byte[] addresses = peersField.getBytes();
 
-      // Iterate peers and store IP + port for each peer
-      for (int i = 0; i < peersAsBytes.length - 6; i += 6) {
-        byte[] ipAsBytes = Arrays.copyOfRange(peersAsBytes, i, i + 4);
-        InetAddress inetAddress = InetAddress.getByAddress(ipAsBytes);
+    // Create peers
+    peers = createPeers(addresses, torrent);
+    return peers;
+  }
 
-        int peerPort = ((peersAsBytes[i + 5] & 0xFF) << 8) | (peersAsBytes[i + 6] & 0xFF);
+  /**
+   * Create peers from address array
+   *
+   * @param addresses Peer addresses byte array
+   * @return list of IP addresses
+   */
+  public List<Peer> createPeers(@NonNull byte[] addresses, @NonNull Torrent torrent)
+      throws UnknownHostException {
+    List<Peer> peers = new ArrayList<>();
 
-        InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
-        peers.add(new Peer(inetSocketAddress, torrent));
+    // Iterate peers and store IP + port for each peer
+    for (int i = 0; i < addresses.length - 6; i += 6) {
+      // Create Inet Socket Address
+      byte[] ipAsBytes = Arrays.copyOfRange(addresses, i, i + 4);
+      InetAddress inetAddress = InetAddress.getByAddress(ipAsBytes);
+      int peerPort = ((addresses[i + 5] & 0xFF) << 8) | (addresses[i + 6] & 0xFF);
+      InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
+
+      if (inetSocketAddress.toString().equals("/0.0.0.0:0")) {
+        break;
       }
-    } catch (Exception e) {
-      e.printStackTrace();
+      System.out.println(inetSocketAddress.toString());
+
+      // Create peer
+      Peer peer = new Peer(inetSocketAddress, torrent);
+      peers.add(peer);
     }
 
     return peers;
