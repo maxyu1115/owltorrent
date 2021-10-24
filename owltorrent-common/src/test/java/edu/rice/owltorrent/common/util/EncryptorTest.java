@@ -11,6 +11,7 @@ import org.junit.Test;
 public class EncryptorTest {
   static String testString = "testString";
   static String expectedHexHash = "956265657D0B637EF65B9B59F9F858EECF55ED6A";
+  static String expectedHexHash2 = "2250c974e979ed47b06e821fcaad27de497a87de";
 
   @Test
   public void testSHA1EncryptString() {
@@ -24,10 +25,15 @@ public class EncryptorTest {
   public void testSHA1EncryptByte() {
     byte[] testInput = testString.getBytes();
 
-    byte[] result = SHA1Encryptor.encrypt(testInput);
+    byte[] head = new String("d6:pieces1:").getBytes();
+    byte[] bytes = new byte[] {(byte) 0xec};
+    byte[] c = new byte[head.length + bytes.length + 1];
+    System.arraycopy(head, 0, c, 0, head.length);
+    System.arraycopy(bytes, 0, c, head.length, bytes.length);
+    System.arraycopy(new String("e").getBytes(), 0, c, head.length + bytes.length, 1);
+    byte[] result = SHA1Encryptor.encrypt(c);
     String actualHexHash = new BigInteger(1, result).toString(16);
-
-    assertEquals(expectedHexHash.toLowerCase(), actualHexHash.toLowerCase());
+    assertEquals(expectedHexHash2.toLowerCase(), actualHexHash.toLowerCase());
   }
 
   @Test

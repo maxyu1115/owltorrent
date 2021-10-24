@@ -2,6 +2,7 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -24,6 +25,8 @@ import lombok.extern.log4j.Log4j2;
 public abstract class PeerMessage {
   /** The size, in bytes, of the length field in a message (one 32-bit integer). */
   public static final int LENGTH_FIELD_SIZE = 4;
+
+  public static final String BIT_TORRENT_PROTOCOL = "BitTorrent protocol";
 
   public static final int HANDSHAKE_BYTE_SIZE = 68;
   public static final int HANDSHAKE_LENGTH_BYTE = 19;
@@ -138,22 +141,21 @@ public abstract class PeerMessage {
     }
   }
 
-  static byte[] constructHandShakeMessage(Peer peer) {
+  static byte[] constructHandShakeMessage(Torrent torrent, TwentyByteId ourPeerID) {
     ByteBuffer message = ByteBuffer.allocate(HANDSHAKE_BYTE_SIZE);
     message.put((byte) HANDSHAKE_LENGTH_BYTE);
-    byte[] pstr = new String("BitTorrent protocol").getBytes(StandardCharsets.US_ASCII);
+    byte[] pstr = BIT_TORRENT_PROTOCOL.getBytes(StandardCharsets.US_ASCII);
     message.put(pstr);
     message.put(new byte[HANDSHAKE_EMPTY_BYTE_LEN]);
-    message.put(peer.getTorrent().getInfoHash().getBytes());
-    // TODO: this should be our own peer id instead.
-    message.put(peer.getPeerID().getBytes());
+    message.put(torrent.getInfoHash().getBytes());
+    message.put(ourPeerID.getBytes());
     return message.array();
   }
 
   static boolean confirmHandShake(byte[] buffer, Peer peer) {
     if (buffer[0] != HANDSHAKE_LENGTH_BYTE) return false;
 
-    byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
+    byte[] title = BIT_TORRENT_PROTOCOL.getBytes(StandardCharsets.US_ASCII);
     for (int i = HANDSHAKE_PROTOCOL_INDEX;
         i < HANDSHAKE_PROTOCOL_INDEX + HANDSHAKE_LENGTH_BYTE;
         i++) {
@@ -164,11 +166,16 @@ public abstract class PeerMessage {
       if (infoHash[i - HANDSHAKE_INFO_HASH_INDEX] != buffer[i]) return false;
     }
 
-    byte[] peerId = peer.getPeerID().getBytes();
-    for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
-      if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
+    if (peer.getPeerID() != null) {
+      byte[] peerId = peer.getPeerID().getBytes();
+      for (int i = HANDSHAKE_PEER_ID_INDEX; i < HANDSHAKE_BYTE_SIZE; i++) {
+        if (peerId[i - HANDSHAKE_PEER_ID_INDEX] != buffer[i]) return false;
+      }
+    } else {
+      byte[] peerId = new byte[20];
+      System.arraycopy(buffer, HANDSHAKE_PEER_ID_INDEX, peerId, 0, 20);
+      peer.setPeerID(new TwentyByteId(peerId));
     }
-
     return true;
   }
 }

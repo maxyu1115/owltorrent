@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.common.entity;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import lombok.Getter;
@@ -17,7 +18,7 @@ public class TwentyByteId {
     if (bytes.length != 20) {
       throw new IllegalStateException("Incorrect number of bytes: " + bytes.length);
     }
-    this.bytes = bytes;
+    this.bytes = Arrays.copyOf(bytes, 20);
   }
 
   @Override
@@ -39,10 +40,30 @@ public class TwentyByteId {
 
   @Override
   public String toString() {
-    return new String(bytes);
+    return new BigInteger(1, bytes).toString(16);
   }
 
   public static TwentyByteId fromString(String str) {
-    return new TwentyByteId(str.getBytes(StandardCharsets.US_ASCII));
+    return new TwentyByteId(str.getBytes(StandardCharsets.UTF_8));
+  }
+
+  public String hexEncodeURL() throws Exception {
+    String hexString = this.toString();
+    if (hexString == null || hexString.isEmpty()) {
+      return "";
+    }
+    if (hexString.length() % 2 != 0) {
+      throw new Exception("String is not hex, length NOT divisible by 2: " + hexString);
+    }
+    int len = hexString.length();
+    char[] output = new char[len + len / 2];
+    int i = 0;
+    int j = 0;
+    while (i < len) {
+      output[j++] = '%';
+      output[j++] = hexString.charAt(i++);
+      output[j++] = hexString.charAt(i++);
+    }
+    return new String(output);
   }
 }

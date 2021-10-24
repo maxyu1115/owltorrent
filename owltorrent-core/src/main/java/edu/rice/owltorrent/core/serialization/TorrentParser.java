@@ -1,10 +1,10 @@
 package edu.rice.owltorrent.core.serialization;
 
-import com.dampcake.bencode.BencodeInputStream;
 import edu.rice.owltorrent.common.entity.Torrent;
-import java.io.ByteArrayInputStream;
+import edu.rice.owltorrent.common.entity.TwentyByteId;
+import edu.rice.owltorrent.common.util.Bencoder;
+import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import lombok.NonNull;
@@ -26,6 +26,7 @@ public class TorrentParser {
   public static final String filesField = "files";
   public static final String lengthField = "length";
   public static final String pathField = "path";
+  public static final Bencoder bencoder = new Bencoder();
 
   /**
    * Bencode a Torrent file and extract important attributes
@@ -33,7 +34,7 @@ public class TorrentParser {
    * @param file Torrent file path
    * @return pruned Torrent object
    */
-  public static Torrent parse(@NonNull File file) throws IOException {
+  public static Torrent parse(@NonNull File file) throws Exception {
     var dict = bencode(file);
     Torrent torrent = extractAttributes(dict);
     return torrent;
@@ -45,10 +46,9 @@ public class TorrentParser {
    * @param file Torrent file
    * @return dictionary containing all file attributes
    */
-  public static Map<String, Object> bencode(@NonNull File file) throws IOException {
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(Files.readAllBytes(file.toPath()));
-    BencodeInputStream bencodeInputStream = new BencodeInputStream(inputStream);
-    var dict = bencodeInputStream.readDictionary();
+  public static Map<String, Object> bencode(@NonNull File file) throws Exception {
+    byte[] input = Files.readAllBytes(file.toPath());
+    Map<String, Object> dict = (Map<String, Object>) bencoder.decodeAny(input, 0).getValue();
 
     return dict;
   }
@@ -60,44 +60,46 @@ public class TorrentParser {
    * @return pruned Torrent object
    */
   public static Torrent extractAttributes(@NonNull Map<String, Object> dict) {
-    String announceURL = (String) dict.get(announceField);
+    String announceURL = new String((byte[]) dict.get(announceField));
+    Map<String, Object> infoDict = (Map<String, Object>) dict.get(infoField);
 
-    var infoDict = (Map<String, Object>) dict.get(infoField);
-    String name = (String) infoDict.get(nameField);
+    String name = new String((byte[]) infoDict.get(nameField));
     long pieceLength = (long) infoDict.get(pieceLengthField);
-    List<String> pieces = extractPieces((String) infoDict.get(piecesField));
-
+    List<byte[]> pieces = extractPieces(infoDict);
     HashMap<String, Long> fileLengths = new HashMap<>();
     if (infoDict.containsKey(filesField)) { // Multiple files
       fileLengths =
           getFileLengths((ArrayList<LinkedHashMap<String, String>>) infoDict.get(filesField));
     } else { // Single file
-      fileLengths.put(name, (long) infoDict.get(lengthField));
+      fileLengths.put(name, (Long) infoDict.get(lengthField));
     }
 
-    return new Torrent(announceURL, name, pieceLength, pieces, fileLengths, null);
+    byte[] infoHashString = bencoder.encodeDict(infoDict);
+    byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashString);
+
+    return new Torrent(
+        announceURL,
+        name,
+        pieceLength,
+        pieces,
+        fileLengths,
+        new TwentyByteId(encryptedInfoHashBytes));
   }
 
   /**
    * Extract SHA1 hashes of all the pieces
    *
-   * @param rawPieceData String containing all the piece hashes
+   * @param infoDict a dictionary matching the info attribute of the torrent file
    * @return list of SHA1 hashes
    */
-  public static List<String> extractPieces(@NonNull String rawPieceData) {
-    List<String> pieces = new ArrayList<>();
+  public static List<byte[]> extractPieces(@NonNull Map<String, Object> infoDict) {
+    List<byte[]> pieces = new ArrayList<>();
+    byte[] rawPieces = (byte[]) infoDict.get(piecesField);
 
-    // Take chunks of size 20 at a time.
-    for (int i = 0; i < rawPieceData.length(); i += 20) {
-      int startIndex = i;
-      int endIndex = Math.min(rawPieceData.length(), i + 20);
-
-      pieces.add(rawPieceData.substring(startIndex, endIndex));
+    for (int i = 0; i < rawPieces.length; i += 20) {
+      byte[] temp = Arrays.copyOfRange(rawPieces, i, i + 20);
+      pieces.add(temp);
     }
-
-    // TODO: fix bug, piece one off
-    log.info("Found " + pieces.size() + " pieces");
-
     return pieces;
   }
 

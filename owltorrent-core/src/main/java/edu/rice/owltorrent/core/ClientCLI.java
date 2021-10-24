@@ -19,6 +19,7 @@ public class ClientCLI implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
     OwlTorrentClient client = new OwlTorrentClient();
+    client.startSeeding();
     OwlTorrentClient.ProgressMeter meter;
     try {
       meter = client.downloadFile(torrentFileName);

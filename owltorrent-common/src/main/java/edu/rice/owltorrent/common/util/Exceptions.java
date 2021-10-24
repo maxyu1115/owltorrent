@@ -1,5 +1,7 @@
 package edu.rice.owltorrent.common.util;
 
+import lombok.Getter;
+
 public class Exceptions {
 
   public static class FileAlreadyExistsException extends Exception {}
@@ -14,4 +16,11 @@ public class Exceptions {
   }
 
   public static class ParsingTorrentFileFailedException extends Exception {}
+
+  @Getter
+  public static class BTException extends RuntimeException {
+    public BTException(String message) {
+      super(message);
+    }
+  }
 }

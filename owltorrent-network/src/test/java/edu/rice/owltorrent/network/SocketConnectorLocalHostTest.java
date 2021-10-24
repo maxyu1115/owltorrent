@@ -47,11 +47,13 @@ public class SocketConnectorLocalHostTest {
   public void testHandShakeNoException() throws IOException {
     Thread listenerThread = new Thread(listener);
     TwentyByteId peerId = TwentyByteId.fromString("12345678901234567890");
+    when(torrentManager.getOurPeerId()).thenReturn(peerId);
     try {
       listenerThread.start();
 
       Peer host = new Peer(peerId, new InetSocketAddress("127.0.0.1", 8080), torrent);
-      SocketConnector connector = SocketConnector.makeInitialConnection(host, null, storageAdapter);
+      SocketConnector connector =
+          SocketConnector.makeInitialConnection(host, torrentManager, storageAdapter);
       connector.initiateConnection();
 
     } catch (Exception e) {
