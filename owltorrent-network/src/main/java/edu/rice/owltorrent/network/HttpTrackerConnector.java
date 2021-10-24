@@ -4,6 +4,7 @@ import com.dampcake.bencode.BencodeInputStream;
 import com.google.common.io.ByteStreams;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.*;
@@ -19,8 +20,6 @@ import lombok.NonNull;
  */
 public class HttpTrackerConnector implements PeerLocator {
 
-  public static final String peerID = "owltorrentclientpeer";
-  public static final String port = "6991";
   public static final String left = "0";
   public static final String downloaded = "0";
   public static final String uploaded = "0";
@@ -29,13 +28,12 @@ public class HttpTrackerConnector implements PeerLocator {
   /**
    * Determine which protocol to use and then retrieve peers accordingly
    *
-   * @param torrent Torrent object
+   * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locatePeers(@NonNull Torrent torrent) {
+  public List<Peer> locatePeers(@NonNull TorrentContext torrentContext) {
     try {
-      List<Peer> peers = locateWithHTTPTracker(torrent);
-      return peers;
+      return locateWithHTTPTracker(torrentContext);
     } catch (Exception e) {
       return null;
     }
@@ -44,11 +42,11 @@ public class HttpTrackerConnector implements PeerLocator {
   /**
    * Retrieve peers from HTTP tracker
    *
-   * @param torrent Torrent object
+   * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locateWithHTTPTracker(@NonNull Torrent torrent) throws Exception {
-    List<Peer> peers = new ArrayList<>();
+  public List<Peer> locateWithHTTPTracker(@NonNull TorrentContext torrentContext) throws Exception {
+    Torrent torrent = torrentContext.getTorrent();
 
     String baseURL = torrent.getAnnounceURL();
     String request =
@@ -56,9 +54,9 @@ public class HttpTrackerConnector implements PeerLocator {
             + "info_hash="
             + torrent.getInfoHash().hexEncodeURL()
             + "&peer_id="
-            + peerID
+            + torrentContext.getOurPeerId().toString()
             + "&port="
-            + port
+            + torrentContext.getListenerPort()
             + "&left="
             + left
             + "&downloaded="
@@ -86,8 +84,7 @@ public class HttpTrackerConnector implements PeerLocator {
     byte[] addresses = peersField.getBytes();
 
     // Create peers
-    peers = createPeers(addresses, torrent);
-    return peers;
+    return createPeers(addresses, torrent);
   }
 
   /**

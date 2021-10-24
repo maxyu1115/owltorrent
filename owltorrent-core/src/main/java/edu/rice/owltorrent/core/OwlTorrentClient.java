@@ -4,6 +4,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
@@ -29,7 +30,7 @@ public class OwlTorrentClient {
 
   private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
   private HandShakeListener handShakeListener;
-  private int listenerPort = 6881;
+  private static final short listenerPort = 6881;
 
   private final TwentyByteId ourPeerId;
 
@@ -46,9 +47,9 @@ public class OwlTorrentClient {
   public ProgressMeter downloadFile(String torrentFileName)
       throws Exceptions.FileAlreadyExistsException, Exceptions.IllegalByteOffsets,
           Exceptions.FileCouldNotBeCreatedException, Exceptions.ParsingTorrentFileFailedException {
-    Torrent torrent = findTorrent(torrentFileName);
-    StorageAdapter adapter = createDownloadingStorageAdapter(torrent);
-    TorrentManager manager = TorrentManager.makeDownloader(ourPeerId, torrent, adapter);
+    TorrentContext torrentContext = findTorrent(torrentFileName);
+    StorageAdapter adapter = createDownloadingStorageAdapter(torrentContext.getTorrent());
+    TorrentManager manager = TorrentManager.makeDownloader(torrentContext, adapter);
     torrentRepository.registerTorrentManager(manager);
     manager.startDownloadingAsynchronously();
     return manager::getProgressPercent;
@@ -56,13 +57,13 @@ public class OwlTorrentClient {
 
   public void seedFile(String torrentFileName, String fileName)
       throws Exceptions.ParsingTorrentFileFailedException, FileNotFoundException {
-    Torrent torrent = findTorrent(torrentFileName);
+    TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createSeedingStorageAdapter(fileName);
-    TorrentManager manager = TorrentManager.makeSeeder(ourPeerId, torrent, adapter);
+    TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter);
     torrentRepository.registerTorrentManager(manager);
   }
 
-  private Torrent findTorrent(String torrentFileName)
+  private TorrentContext findTorrent(String torrentFileName)
       throws Exceptions.ParsingTorrentFileFailedException {
     File torrentFile = new File(torrentFileName);
     Torrent torrent;
@@ -71,7 +72,7 @@ public class OwlTorrentClient {
     } catch (Exception e) {
       throw new Exceptions.ParsingTorrentFileFailedException();
     }
-    return torrent;
+    return new TorrentContext(ourPeerId, listenerPort, torrent);
   }
 
   private StorageAdapter createDownloadingStorageAdapter(Torrent torrent)

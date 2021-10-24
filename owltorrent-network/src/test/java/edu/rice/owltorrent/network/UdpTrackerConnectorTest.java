@@ -4,6 +4,7 @@ import static junit.framework.TestCase.fail;
 
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -12,6 +13,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class UdpTrackerConnectorTest {
+  private static final TwentyByteId peerId = TwentyByteId.fromString("owltorrentclientpeer");
 
   @Test
   public void locateWithUDPTracker_Success() {
@@ -23,7 +25,7 @@ public class UdpTrackerConnectorTest {
 
     try {
       UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-      peerLocator.locateWithUDPTracker(torrent);
+      peerLocator.locateWithUDPTracker(new TorrentContext(peerId, (short) 6881, torrent));
     } catch (Exception e) {
       fail();
     }

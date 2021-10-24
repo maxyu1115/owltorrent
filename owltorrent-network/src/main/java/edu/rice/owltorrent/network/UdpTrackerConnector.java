@@ -2,6 +2,7 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -23,7 +24,6 @@ public class UdpTrackerConnector implements PeerLocator {
   public static final int transaction_id = 12345;
 
   // Announce parameters
-  public static final String peerID = "owltorrentclientpeer";
   public static final long left = 0;
   public static final long downloaded = 0;
   public static final long uploaded = 0;
@@ -35,13 +35,12 @@ public class UdpTrackerConnector implements PeerLocator {
   /**
    * Determine which protocol to use and then retrieve peers accordingly
    *
-   * @param torrent Torrent object
+   * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locatePeers(@NonNull Torrent torrent) {
+  public List<Peer> locatePeers(@NonNull TorrentContext torrentContext) {
     try {
-      List<Peer> peers = locateWithUDPTracker(torrent);
-      return peers;
+      return locateWithUDPTracker(torrentContext);
     } catch (Exception e) {
       return null;
     }
@@ -50,11 +49,12 @@ public class UdpTrackerConnector implements PeerLocator {
   /**
    * Retrieve peers from UDP tracker
    *
-   * @param torrent Torrent object
+   * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locateWithUDPTracker(@NonNull Torrent torrent)
+  public List<Peer> locateWithUDPTracker(@NonNull TorrentContext torrentContext)
       throws IOException, UnknownHostException {
+    Torrent torrent = torrentContext.getTorrent();
     List<Peer> peers = new ArrayList<>();
 
     // Create socket on any available port.
@@ -103,7 +103,7 @@ public class UdpTrackerConnector implements PeerLocator {
     announceRequestData.putInt(action);
     announceRequestData.putInt(transaction_id);
     announceRequestData.put(torrent.getInfoHash().getBytes());
-    announceRequestData.put(peerID.getBytes());
+    announceRequestData.put(torrentContext.getOurPeerId().getBytes());
     announceRequestData.putLong(downloaded);
     announceRequestData.putLong(left);
     announceRequestData.putLong(uploaded);
@@ -111,6 +111,7 @@ public class UdpTrackerConnector implements PeerLocator {
     announceRequestData.putInt(ip_address);
     announceRequestData.putInt(key);
     announceRequestData.putInt(num_want);
+    announceRequestData.putShort(torrentContext.getListenerPort());
     DatagramPacket announceRequestPacket =
         new DatagramPacket(
             connectRequestData.array(), connectRequestData.capacity(), trackerAddress);
@@ -164,12 +165,10 @@ public class UdpTrackerConnector implements PeerLocator {
         if (i == 7) { // Couldn't connect after 8 attempts.
           return null;
         }
-        continue;
       }
     }
 
-    byte[] response = responsePacket.getData();
-    return response;
+    return responsePacket.getData();
   }
 
   /**

@@ -6,6 +6,7 @@ import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
@@ -49,38 +50,44 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final int totalPieces;
 
+  private final TorrentContext torrentContext;
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  private TorrentManager(TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
-    this.ourPeerId = ourPeerId;
-    this.torrent = file;
+  private TorrentManager(TorrentContext torrentContext, StorageAdapter adapter) {
+    this.torrentContext = torrentContext;
+    this.ourPeerId = torrentContext.getOurPeerId();
+    this.torrent = torrentContext.getTorrent();
     this.networkStorageAdapter = adapter;
     this.totalPieces = torrent.getPieces().size();
   }
 
-  public static TorrentManager makeSeeder(
-      TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(ourPeerId, file, adapter);
+  public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
-    log.info("Started seeding torrent {}", file);
+    log.info("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
   public static TorrentManager makeDownloader(
-      TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(ourPeerId, file, adapter);
+      TorrentContext torrentContext, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
     manager.initPeers(
         List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
-    log.info("Started downloading torrent {}", file);
+    log.info("Started downloading torrent {}", torrentContext.getTorrent());
     return manager;
+  }
+
+  private void announce() {
+    PeerLocator locator = new UdpTrackerConnector();
+    locator.locatePeers(torrentContext);
   }
 
   private void initPeers(List<Peer> peerList) {
