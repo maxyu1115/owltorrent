@@ -45,29 +45,42 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
-  private final Queue<Integer> notStartedPieces;
+  private final Queue<Integer> notStartedPieces = new ConcurrentLinkedQueue<>();
 
   private final int totalPieces;
 
   @Getter private final TwentyByteId ourPeerId;
-  private final Map<Peer, PeerConnectionContext> peers;
+  private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  public TorrentManager(TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
+  private TorrentManager(TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
     this.ourPeerId = ourPeerId;
     this.torrent = file;
     this.networkStorageAdapter = adapter;
-    this.notStartedPieces = new ConcurrentLinkedQueue<>();
     this.totalPieces = torrent.getPieces().size();
+  }
 
-    for (int idx = 0; idx < totalPieces; idx++) {
-      this.notStartedPieces.add(idx);
+  public static TorrentManager makeSeeder(
+      TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(ourPeerId, file, adapter);
+    for (int idx = 0; idx < manager.totalPieces; idx++) {
+      manager.completedPieces.add(idx);
     }
+    log.info("Started seeding torrent {}", file);
+    return manager;
+  }
 
-    this.peers = new ConcurrentHashMap<>();
-
-    initPeers(List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), torrent)));
+  public static TorrentManager makeDownloader(
+      TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(ourPeerId, file, adapter);
+    for (int idx = 0; idx < manager.totalPieces; idx++) {
+      manager.notStartedPieces.add(idx);
+    }
+    manager.initPeers(
+        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
+    log.info("Started downloading torrent {}", file);
+    return manager;
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -138,7 +151,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're assuming all our peers are seeders
-      // Request a missing piece from each Peer
+      //  Request a missing piece from each Peer
       List<Peer> connections =
           peers.keySet().stream()
               .filter(peer -> !peers.get(peer).waitingForRequest.get())

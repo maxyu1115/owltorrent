@@ -17,7 +17,17 @@ public class DiskFile {
 
   private long pieceSize;
   private long numBytes;
-  private RandomAccessFile file;
+  private final RandomAccessFile file;
+
+  /**
+   * creates a readonly DiskFile object for finished/seeding files
+   *
+   * @param filePath filePath
+   * @throws FileNotFoundException when unable to find file
+   */
+  public DiskFile(String filePath) throws FileNotFoundException {
+    this.file = new RandomAccessFile(new File(filePath), "r");
+  }
 
   /**
    * Creates a new DownloadFile object that abstracts the process of writing data to disk.
