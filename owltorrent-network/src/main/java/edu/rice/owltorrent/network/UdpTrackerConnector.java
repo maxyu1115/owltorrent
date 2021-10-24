@@ -9,25 +9,28 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import lombok.NonNull;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * UDP tracker connector to fetch peers.
  *
  * @author bhaveshshah
  */
+@Log4j2(topic = "network")
 public class UdpTrackerConnector implements PeerLocator {
 
   // Connect parameters
-  public static final long protocol_id = 0x41727101980L;
-  public static final int action = 1;
-  public static final int transaction_id = 12345;
+  public static final long PROTOCOL_ID = 0x41727101980L;
+  public static final int CONNECT_ACTION = 0;
+  public static final int ANNOUNCE_ACTION = 1;
 
   // Announce parameters
   public static final long left = 0;
   public static final long downloaded = 0;
   public static final long uploaded = 0;
-  public static final int event = 0;
+  public static final int event = 1;
   public static final int ip_address = 0;
   public static final int key = 0;
   public static final int num_want = -1;
@@ -56,6 +59,7 @@ public class UdpTrackerConnector implements PeerLocator {
       throws IOException, UnknownHostException {
     Torrent torrent = torrentContext.getTorrent();
     List<Peer> peers = new ArrayList<>();
+    Random random = new Random(31);
 
     // Create socket on any available port.
     DatagramSocket datagramSocket = new DatagramSocket();
@@ -70,8 +74,9 @@ public class UdpTrackerConnector implements PeerLocator {
 
     // Create connectRequestPacket
     ByteBuffer connectRequestData = ByteBuffer.allocate(16);
-    connectRequestData.putLong(protocol_id);
-    connectRequestData.putInt(action);
+    connectRequestData.putLong(PROTOCOL_ID);
+    connectRequestData.putInt(CONNECT_ACTION);
+    int transaction_id = random.nextInt();
     connectRequestData.putInt(transaction_id);
     DatagramPacket connectRequestPacket =
         new DatagramPacket(
@@ -100,16 +105,19 @@ public class UdpTrackerConnector implements PeerLocator {
     // Create announceRequestPacket
     ByteBuffer announceRequestData = ByteBuffer.allocate(98);
     announceRequestData.putLong(connection_id);
-    announceRequestData.putInt(action);
-    announceRequestData.putInt(transaction_id);
+    announceRequestData.putInt(ANNOUNCE_ACTION);
+    announceRequestData.putInt(random.nextInt()); // transaction id
     announceRequestData.put(torrent.getInfoHash().getBytes());
     announceRequestData.put(torrentContext.getOurPeerId().getBytes());
-    announceRequestData.putLong(downloaded);
-    announceRequestData.putLong(left);
-    announceRequestData.putLong(uploaded);
-    announceRequestData.putInt(event);
-    announceRequestData.putInt(ip_address);
-    announceRequestData.putInt(key);
+    announceRequestData.putLong(torrent.getTotalLength());
+    announceRequestData.putLong(0L);
+    announceRequestData.putLong(0L);
+    announceRequestData.putInt(0);
+    log.info("Address: {}", InetAddress.getLocalHost());
+    // announceRequestData.put(InetAddress.getLocalHost().getAddress());
+    announceRequestData.put(InetAddress.getByName("10.119.176.109").getAddress());
+    // announceRequestData.putInt(0);
+    announceRequestData.putInt(random.nextInt());
     announceRequestData.putInt(num_want);
     announceRequestData.putShort(torrentContext.getListenerPort());
     DatagramPacket announceRequestPacket =
@@ -120,11 +128,13 @@ public class UdpTrackerConnector implements PeerLocator {
     byte[] announceResponseData = new byte[65508];
     DatagramPacket announceResponsePacket =
         new DatagramPacket(announceResponseData, announceResponseData.length);
+    log.debug("Communicating with Socket");
 
     // Communicate with socket to get announce response
     byte[] announceResponse =
         communicateWithSocket(datagramSocket, announceRequestPacket, announceResponsePacket);
     if (announceResponse == null) {
+      log.info("No response from socket");
       return peers; // Return empty addresses
     }
 
@@ -192,12 +202,13 @@ public class UdpTrackerConnector implements PeerLocator {
       if (inetSocketAddress.toString().equals("/0.0.0.0:0")) {
         break;
       }
-      System.out.println(inetSocketAddress.toString());
+      // System.out.println(inetSocketAddress.toString());
 
       // Create peer
       Peer peer = new Peer(inetSocketAddress, torrent);
       peers.add(peer);
     }
+    log.debug("Found peers: {}", peers);
 
     return peers;
   }

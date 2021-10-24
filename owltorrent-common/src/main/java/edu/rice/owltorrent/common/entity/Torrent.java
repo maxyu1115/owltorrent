@@ -1,7 +1,7 @@
 package edu.rice.owltorrent.common.entity;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -26,11 +26,16 @@ public class Torrent {
   // TODO: not the most efficient, consider refactoring.
   /** @return the length of the last piece */
   public long getLastPieceLength() {
+    long totalLength = getTotalLength();
+    return totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength;
+  }
+
+  public long getTotalLength() {
     long totalLength = 0;
     for (var entry : fileLengths.entrySet()) {
       totalLength += entry.getValue();
     }
-    return totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength;
+    return totalLength;
   }
 
   /**
@@ -40,7 +45,7 @@ public class Torrent {
   private List<byte[]> pieces;
 
   /** The lengths of each file in Torrent. */
-  private HashMap<String, Long> fileLengths;
+  private Map<String, Long> fileLengths;
 
   private TwentyByteId infoHash;
   //  private String infoHash;

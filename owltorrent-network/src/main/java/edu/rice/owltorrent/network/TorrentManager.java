@@ -9,6 +9,7 @@ import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.BitfieldMessage;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
@@ -69,6 +70,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
+    manager.announce();
     log.info("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
@@ -79,15 +81,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
+    // manager.initPeers(manager.announce());
     manager.initPeers(
         List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
     log.info("Started downloading torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
-  private void announce() {
+  private List<Peer> announce() {
     PeerLocator locator = new UdpTrackerConnector();
-    locator.locatePeers(torrentContext);
+    return locator.locatePeers(torrentContext);
   }
 
   private void initPeers(List<Peer> peerList) {
@@ -121,7 +124,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
   // Later if get updated peerlist from tracker.
   public void addPeer(PeerConnector connector, Peer peer) {
     connector.setStorageAdapter(networkStorageAdapter);
-    this.peers.put(peer, new PeerConnectionContext(connector));
+    try {
+      connector.writeMessage(new BitfieldMessage(buildBitfield()));
+      this.peers.put(peer, new PeerConnectionContext(connector));
+      log.info("Added peer {}", peer.getPeerID());
+    } catch (IOException exception) {
+      log.error(exception);
+    }
   }
 
   @Override
@@ -348,7 +357,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return data;
   }
 
-  Bitfield buildBitfield() {
+  private Bitfield buildBitfield() {
     Bitfield bitfield = new Bitfield(new BitSet(totalPieces));
     for (Integer i : completedPieces) {
       bitfield.setBit(i);
