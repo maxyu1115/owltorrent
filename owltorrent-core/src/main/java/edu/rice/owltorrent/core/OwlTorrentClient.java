@@ -58,7 +58,7 @@ public class OwlTorrentClient {
   public void seedFile(String torrentFileName, String fileName)
       throws Exceptions.ParsingTorrentFileFailedException, FileNotFoundException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
-    StorageAdapter adapter = createSeedingStorageAdapter(fileName);
+    StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
     TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter);
     torrentRepository.registerTorrentManager(manager);
   }
@@ -90,7 +90,9 @@ public class OwlTorrentClient {
       public FileBlock read(FileBlockInfo blockInfo)
           throws Exceptions.IllegalByteOffsets, IOException {
         return new FileBlock(
-            blockInfo.getPieceIndex(), blockInfo.getLength(), diskFile.readBlock(blockInfo));
+            blockInfo.getPieceIndex(),
+            blockInfo.getOffsetWithinPiece(),
+            diskFile.readBlock(blockInfo));
       }
 
       @Override
@@ -106,15 +108,18 @@ public class OwlTorrentClient {
     };
   }
 
-  private StorageAdapter createSeedingStorageAdapter(String fileName) throws FileNotFoundException {
-    DiskFile diskFile = new DiskFile(fileName);
+  private StorageAdapter createSeedingStorageAdapter(Torrent torrent, String fileName)
+      throws FileNotFoundException {
+    DiskFile diskFile = new DiskFile(torrent, fileName);
     return new StorageAdapter() {
 
       @Override
       public FileBlock read(FileBlockInfo blockInfo)
           throws Exceptions.IllegalByteOffsets, IOException {
         return new FileBlock(
-            blockInfo.getPieceIndex(), blockInfo.getLength(), diskFile.readBlock(blockInfo));
+            blockInfo.getPieceIndex(),
+            blockInfo.getOffsetWithinPiece(),
+            diskFile.readBlock(blockInfo));
       }
 
       @Override

@@ -34,7 +34,19 @@ public class SocketConnector extends PeerConnector {
         public void run() {
           ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
-            handleMessage(channel);
+            try {
+              handleMessage(channel);
+            } catch (InterruptedException e) {
+              log.info(e);
+
+              manager.removePeer(peer);
+              try {
+                close();
+              } catch (Exception exception) {
+                log.error("Could not close: ", exception);
+              }
+              return;
+            }
           }
         }
       };

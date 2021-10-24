@@ -54,22 +54,22 @@ public abstract class PeerConnector implements AutoCloseable {
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 
-  protected final void handleMessage(ReadableByteChannel inputStream) {
+  protected final void handleMessage(ReadableByteChannel inputStream) throws InterruptedException {
     PeerMessage message = null;
     try {
       message = messageReader.readMessage(inputStream);
+      log.info(message);
     } catch (IOException ioException) {
       log.error(ioException);
     }
     if (message == null) {
-      // TODO: shutdown
-      return;
+      throw new InterruptedException("Connection closed");
     }
 
     handleMessage(message);
   }
 
-  protected final void handleMessage(PeerMessage message) {
+  protected final void handleMessage(PeerMessage message) throws InterruptedException {
     switch (message.getMessageType()) {
       case CHOKE:
         peer.setChoked(true);
@@ -88,10 +88,9 @@ public abstract class PeerConnector implements AutoCloseable {
         peer.setBitfield(((BitfieldMessage) message).getBitfield());
         break;
       case REQUEST:
-        if (!((PieceActionMessage) message).verify(manager.getTorrent())) {
+        if (!message.verify(manager.getTorrent())) {
           log.error("Invalid Request Messgae");
-          // TODO: close connection?
-          break;
+          throw new InterruptedException("Invalid Request Messgae, Connection closed");
         }
         // Verify if the piece exists
         int index = ((PieceActionMessage) message).getIndex();
@@ -106,7 +105,7 @@ public abstract class PeerConnector implements AutoCloseable {
                   piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
         } catch (Exceptions.IllegalByteOffsets | IOException blockReadException) {
           log.error(blockReadException);
-          // TODO: close connection?
+          throw new InterruptedException("Invalid block read, Connection closed");
         }
         break;
       case PIECE:

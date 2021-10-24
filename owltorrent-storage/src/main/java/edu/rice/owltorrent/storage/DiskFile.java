@@ -2,6 +2,7 @@ package edu.rice.owltorrent.storage;
 
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.File;
@@ -25,7 +26,9 @@ public class DiskFile {
    * @param filePath filePath
    * @throws FileNotFoundException when unable to find file
    */
-  public DiskFile(String filePath) throws FileNotFoundException {
+  public DiskFile(Torrent torrent, String filePath) throws FileNotFoundException {
+    this.numBytes = torrent.getTotalLength();
+    this.pieceSize = torrent.getPieceLength();
     this.file = new RandomAccessFile(new File(filePath), "r");
   }
 

@@ -133,6 +133,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
+  public void removePeer(Peer peer) {
+    peers.remove(peer);
+  }
+
   @Override
   public void close() throws Exception {
     for (var pair : peers.entrySet()) {

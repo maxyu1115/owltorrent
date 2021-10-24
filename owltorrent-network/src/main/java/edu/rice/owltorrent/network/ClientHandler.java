@@ -43,6 +43,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
       Peer peer = getPeer(handShakeBuffer, torrentManager.get());
       SocketConnector connector =
           SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket);
+      connector.respondToConnection();
       torrentManager.get().addPeer(connector, connector.peer);
       connector.respondToConnection();
     } catch (IOException e) {
