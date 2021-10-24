@@ -6,6 +6,7 @@ import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.BitfieldMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
@@ -84,6 +85,7 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case HAVE:
       case BITFIELD:
+        peer.setBitfield(((BitfieldMessage) message).getBitfield());
         break;
       case REQUEST:
         if (!((PieceActionMessage) message).verify(manager.getTorrent())) {

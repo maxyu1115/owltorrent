@@ -2,6 +2,7 @@ package edu.rice.owltorrent.network;
 
 import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
+import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
@@ -325,5 +326,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
           (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
     }
     return data;
+  }
+
+  Bitfield buildBitfield() {
+    Bitfield bitfield = new Bitfield(new BitSet(totalPieces));
+    for (Integer i : completedPieces) {
+      bitfield.setBit(i);
+    }
+    return bitfield;
   }
 }
