@@ -109,7 +109,7 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case PIECE:
         FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
-        if (manager.validateAndReportBlockInProgress(fileBlock)) {
+        if (manager.validateAndReportBlockInProgress(peer, fileBlock)) {
           try {
             log.info(
                 "Trying to write file block "
