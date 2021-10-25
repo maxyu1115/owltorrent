@@ -1,9 +1,10 @@
 package edu.rice.owltorrent.common.entity;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Represent the Torrent class after parsing.
@@ -26,21 +27,26 @@ public class Torrent {
   // TODO: not the most efficient, consider refactoring.
   /** @return the length of the last piece */
   public long getLastPieceLength() {
+    long totalLength = getTotalLength();
+    return totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength;
+  }
+
+  public long getTotalLength() {
     long totalLength = 0;
     for (var entry : fileLengths.entrySet()) {
       totalLength += entry.getValue();
     }
-    return totalLength % pieceLength == 0 ? pieceLength : totalLength % pieceLength;
+    return totalLength;
   }
 
   /**
    * A list of byte array whose length is a multiple of 20. It is to be subdivided into strings of
    * length 20, each of which is the SHA1 hash of the piece at the corresponding index.
    */
-  private List<byte[]> pieces;
+  @ToString.Exclude private List<byte[]> pieceHashes;
 
   /** The lengths of each file in Torrent. */
-  private HashMap<String, Long> fileLengths;
+  private Map<String, Long> fileLengths;
 
   private TwentyByteId infoHash;
   //  private String infoHash;

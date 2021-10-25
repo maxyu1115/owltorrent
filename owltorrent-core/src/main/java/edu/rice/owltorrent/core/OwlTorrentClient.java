@@ -4,6 +4,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
@@ -26,25 +27,51 @@ public class OwlTorrentClient {
 
   private static final String OWL_TORRENT_ID_PREFIX = "OwlTorrent";
 
-  private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
-  private HandShakeListener handShakeListener;
-  private int listenerPort = 6881;
+  private final TorrentRepository torrentRepository = new TorrentRepositoryImpl();
+  private final HandShakeListener handShakeListener;
+  private final Thread listenerThread;
+  private static final int listenerPort = 57600;
 
   private final TwentyByteId ourPeerId;
 
   public OwlTorrentClient() {
     // TODO: generate an actual id
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    listenerThread = new Thread(this.handShakeListener);
   }
 
   void startSeeding() {
-    this.handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
-    new Thread(this.handShakeListener).start();
+    listenerThread.start();
   }
 
   public ProgressMeter downloadFile(String torrentFileName)
       throws Exceptions.FileAlreadyExistsException, Exceptions.IllegalByteOffsets,
           Exceptions.FileCouldNotBeCreatedException, Exceptions.ParsingTorrentFileFailedException {
+    TorrentContext torrentContext = findTorrent(torrentFileName);
+    StorageAdapter adapter = createDownloadingStorageAdapter(torrentContext.getTorrent());
+    TorrentManager manager = TorrentManager.makeDownloader(torrentContext, adapter);
+    torrentRepository.registerTorrentManager(manager);
+    manager.startDownloadingAsynchronously();
+    return manager::getProgressPercent;
+  }
+
+  public void seedFile(String torrentFileName, String fileName)
+      throws Exceptions.ParsingTorrentFileFailedException, IOException,
+          Exceptions.FileNotMatchingTorrentException {
+    TorrentContext torrentContext = findTorrent(torrentFileName);
+    StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
+    TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter);
+    torrentRepository.registerTorrentManager(manager);
+    try {
+      listenerThread.join();
+    } catch (InterruptedException e) {
+      log.info("Listener Thread interrupted");
+    }
+  }
+
+  private TorrentContext findTorrent(String torrentFileName)
+      throws Exceptions.ParsingTorrentFileFailedException {
     File torrentFile = new File(torrentFileName);
     Torrent torrent;
     try {
@@ -52,13 +79,10 @@ public class OwlTorrentClient {
     } catch (Exception e) {
       throw new Exceptions.ParsingTorrentFileFailedException();
     }
-    StorageAdapter adapter = createStorageAdapter(torrent);
-    TorrentManager manager = new TorrentManager(ourPeerId, torrent, adapter);
-    manager.startDownloadingAsynchronously();
-    return manager::getProgressPercent;
+    return new TorrentContext(ourPeerId, (short) listenerPort, torrent);
   }
 
-  private StorageAdapter createStorageAdapter(Torrent torrent)
+  private StorageAdapter createDownloadingStorageAdapter(Torrent torrent)
       throws Exceptions.IllegalByteOffsets, Exceptions.FileAlreadyExistsException,
           Exceptions.FileCouldNotBeCreatedException {
     // For now we just support one file. TODO(josh): Add support for multiple files
@@ -73,7 +97,9 @@ public class OwlTorrentClient {
       public FileBlock read(FileBlockInfo blockInfo)
           throws Exceptions.IllegalByteOffsets, IOException {
         return new FileBlock(
-            blockInfo.getPieceIndex(), blockInfo.getLength(), diskFile.readBlock(blockInfo));
+            blockInfo.getPieceIndex(),
+            blockInfo.getOffsetWithinPiece(),
+            diskFile.readBlock(blockInfo));
       }
 
       @Override
@@ -85,6 +111,34 @@ public class OwlTorrentClient {
       public boolean verify(int pieceIndex, byte[] sha1Hash)
           throws Exceptions.IllegalByteOffsets, IOException {
         return diskFile.pieceHashCorrect(pieceIndex, sha1Hash);
+      }
+    };
+  }
+
+  private StorageAdapter createSeedingStorageAdapter(Torrent torrent, String fileName)
+      throws IOException, Exceptions.FileNotMatchingTorrentException {
+    DiskFile diskFile = new DiskFile(torrent, fileName);
+    return new StorageAdapter() {
+
+      @Override
+      public FileBlock read(FileBlockInfo blockInfo)
+          throws Exceptions.IllegalByteOffsets, IOException {
+        return new FileBlock(
+            blockInfo.getPieceIndex(),
+            blockInfo.getOffsetWithinPiece(),
+            diskFile.readBlock(blockInfo));
+      }
+
+      @Override
+      public void write(FileBlock fileBlock) {
+        log.error("Illegal action, should not write to a seeding file");
+        throw new IllegalArgumentException("Illegal action, should not write to a seeding file");
+      }
+
+      @Override
+      public boolean verify(int pieceIndex, byte[] sha1Hash) {
+        log.error("Illegal action, seeder should not be verifying");
+        throw new IllegalArgumentException("Illegal action, seeder should not be verifying");
       }
     };
   }

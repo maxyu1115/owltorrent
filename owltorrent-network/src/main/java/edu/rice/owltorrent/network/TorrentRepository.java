@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.util.Optional;
 
@@ -15,6 +16,13 @@ public interface TorrentRepository {
    * @param torrent the torrent manager
    */
   void registerTorrentManager(TorrentManager torrent);
+
+  /**
+   * Unregisters the torrent, when the torrent manager deactivates
+   *
+   * @param torrent the torrent
+   */
+  void unregisterTorrent(Torrent torrent);
 
   /**
    * Retrieves the torrent specified by its info hash

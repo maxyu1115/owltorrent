@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.core;
 
 import edu.rice.owltorrent.common.util.Exceptions;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import lombok.extern.log4j.Log4j2;
 import picocli.CommandLine;
@@ -16,10 +17,23 @@ public class ClientCLI implements Callable<Integer> {
   @CommandLine.Parameters(index = "0", description = "Path to the torrent file to download.")
   private String torrentFileName;
 
+  @CommandLine.Option(
+      names = {"-s", "--seed"},
+      description = "Path to the file to seed.")
+  private String seedingFileName;
+
   @Override
   public Integer call() throws Exception {
     OwlTorrentClient client = new OwlTorrentClient();
     client.startSeeding();
+    if (seedingFileName == null) {
+      return downloadFile(client);
+    } else {
+      return seedFile(client);
+    }
+  }
+
+  private int downloadFile(OwlTorrentClient client) {
     OwlTorrentClient.ProgressMeter meter;
     try {
       meter = client.downloadFile(torrentFileName);
@@ -54,6 +68,24 @@ public class ClientCLI implements Callable<Integer> {
       }
     }
 
+    return 0;
+  }
+
+  private int seedFile(OwlTorrentClient client) {
+    try {
+      client.seedFile(torrentFileName, seedingFileName);
+    } catch (Exceptions.ParsingTorrentFileFailedException e) {
+      log.error(e);
+      System.out.println("Sorry, the torrent file could not be parsed!!");
+      return 1;
+    } catch (IOException e) {
+      log.error(e);
+      System.out.println("Sorry, encountered issues opening the seeding file.");
+      return 1;
+    } catch (Exceptions.FileNotMatchingTorrentException e) {
+      log.error(e);
+      System.out.println("Sorry, the torrent file does not agree with the seeding file");
+    }
     return 0;
   }
 

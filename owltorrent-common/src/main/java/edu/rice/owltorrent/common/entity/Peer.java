@@ -22,7 +22,7 @@ public class Peer {
 
   @EqualsAndHashCode.Include @Getter private final Torrent torrent;
 
-  @Getter private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
+  @Getter @ToString.Exclude private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 
   /** this client is interested in the peer */
   private final AtomicBoolean amInterested = new AtomicBoolean(false);

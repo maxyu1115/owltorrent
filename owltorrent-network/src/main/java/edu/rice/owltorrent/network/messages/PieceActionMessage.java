@@ -57,9 +57,9 @@ public class PieceActionMessage extends PeerMessage {
 
   @Override
   public boolean verify(Torrent torrent) {
-    boolean indexCheck = this.index >= 0 && this.index < torrent.getPieces().size();
+    boolean indexCheck = this.index >= 0 && this.index < torrent.getPieceHashes().size();
     int lastIndex = this.begin + this.length;
-    if (this.index == torrent.getPieces().size()) {
+    if (this.index == torrent.getPieceHashes().size()) {
       return indexCheck && lastIndex <= torrent.getLastPieceLength();
     } else {
       return indexCheck && lastIndex <= torrent.getPieceLength();

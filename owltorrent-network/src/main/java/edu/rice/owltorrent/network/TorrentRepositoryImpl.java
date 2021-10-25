@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,12 @@ public class TorrentRepositoryImpl implements TorrentRepository {
   public void registerTorrentManager(TorrentManager manager) {
     TwentyByteId infoHash = manager.getTorrent().getInfoHash();
     this.infoHashToTorrentManager.putIfAbsent(infoHash, manager);
+  }
+
+  @Override
+  public void unregisterTorrent(Torrent torrent) {
+    TwentyByteId infoHash = torrent.getInfoHash();
+    this.infoHashToTorrentManager.remove(infoHash);
   }
 
   /**

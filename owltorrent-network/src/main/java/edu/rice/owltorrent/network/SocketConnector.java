@@ -34,7 +34,19 @@ public class SocketConnector extends PeerConnector {
         public void run() {
           ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
-            handleMessage(channel);
+            try {
+              handleMessage(channel);
+            } catch (InterruptedException e) {
+              log.info(e);
+
+              manager.removePeer(peer);
+              try {
+                close();
+              } catch (Exception exception) {
+                log.error("Could not close: ", exception);
+              }
+              return;
+            }
           }
         }
       };
@@ -121,7 +133,7 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   public void writeMessage(PeerMessage message) throws IOException {
-    log.info(message);
+    log.info("Writing: {}", message);
     out.write(message.toBytes());
   }
 

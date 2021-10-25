@@ -2,6 +2,7 @@ package edu.rice.owltorrent.storage;
 
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
+import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.common.util.SHA1Encryptor;
 import java.io.File;
@@ -17,7 +18,33 @@ public class DiskFile {
 
   private long pieceSize;
   private long numBytes;
-  private RandomAccessFile file;
+  private final RandomAccessFile file;
+
+  /**
+   * creates a readonly DiskFile object for finished/seeding files
+   *
+   * @param filePath filePath
+   * @throws FileNotFoundException when unable to find file
+   */
+  public DiskFile(Torrent torrent, String filePath)
+      throws IOException, Exceptions.FileNotMatchingTorrentException {
+    this.numBytes = torrent.getTotalLength();
+    this.pieceSize = torrent.getPieceLength();
+    this.file = new RandomAccessFile(new File(filePath), "r");
+    if (file.length() != numBytes) {
+      throw new Exceptions.FileNotMatchingTorrentException("File length not as expected");
+    }
+    for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
+      try {
+        if (!pieceHashCorrect(i, torrent.getPieceHashes().get(i))) {
+          throw new Exceptions.FileNotMatchingTorrentException(
+              "File hash for piece " + i + " not matching");
+        }
+      } catch (Exceptions.IllegalByteOffsets e) {
+        throw new Exceptions.FileNotMatchingTorrentException("File length not as expected");
+      }
+    }
+  }
 
   /**
    * Creates a new DownloadFile object that abstracts the process of writing data to disk.

@@ -4,6 +4,7 @@ import static junit.framework.TestCase.fail;
 
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -12,6 +13,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class UdpTrackerConnectorTest {
+  private static final TwentyByteId peerId = TwentyByteId.fromString("owltorrentclientpeer");
 
   @Test
   public void locateWithUDPTracker_Success() {
@@ -23,8 +25,10 @@ public class UdpTrackerConnectorTest {
 
     try {
       UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-      peerLocator.locateWithUDPTracker(torrent);
+      peerLocator.locateWithUDPTracker(
+          new TorrentContext(peerId, (short) 6881, torrent), 0, 0, 0, PeerLocator.Event.NONE);
     } catch (Exception e) {
+      e.printStackTrace();
       fail();
     }
   }
@@ -47,13 +51,13 @@ public class UdpTrackerConnectorTest {
   @Test(expected = NullPointerException.class)
   public void locatePeers_nullInput() {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locatePeers(null);
+    peerLocator.locatePeers(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)
   public void locateWithUDPTracker_nullInput() throws IOException {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locateWithUDPTracker(null);
+    peerLocator.locateWithUDPTracker(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)

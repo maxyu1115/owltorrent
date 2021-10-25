@@ -8,6 +8,12 @@ public class Exceptions {
 
   public static class FileCouldNotBeCreatedException extends Exception {}
 
+  public static class FileNotMatchingTorrentException extends Exception {
+    public FileNotMatchingTorrentException(String message) {
+      super(message);
+    }
+  }
+
   public static class IllegalByteOffsets extends Exception {
 
     public IllegalByteOffsets(String message) {

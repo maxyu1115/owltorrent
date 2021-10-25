@@ -6,13 +6,14 @@ import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.BitfieldMessage;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
 import java.math.RoundingMode;
-import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -45,45 +46,80 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
-  private final Queue<Integer> notStartedPieces;
+  private final Queue<Integer> notStartedPieces = new ConcurrentLinkedQueue<>();
 
   private final int totalPieces;
 
+  private final TorrentContext torrentContext;
   @Getter private final TwentyByteId ourPeerId;
-  private final Map<Peer, PeerConnectionContext> peers;
+  private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  public TorrentManager(TwentyByteId ourPeerId, Torrent file, StorageAdapter adapter) {
-    this.ourPeerId = ourPeerId;
-    this.torrent = file;
+  private TorrentManager(TorrentContext torrentContext, StorageAdapter adapter) {
+    this.torrentContext = torrentContext;
+    this.ourPeerId = torrentContext.getOurPeerId();
+    this.torrent = torrentContext.getTorrent();
     this.networkStorageAdapter = adapter;
-    this.notStartedPieces = new ConcurrentLinkedQueue<>();
-    this.totalPieces = torrent.getPieces().size();
+    this.totalPieces = torrent.getPieceHashes().size();
+  }
 
-    for (int idx = 0; idx < totalPieces; idx++) {
-      this.notStartedPieces.add(idx);
+  public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+    for (int idx = 0; idx < manager.totalPieces; idx++) {
+      manager.completedPieces.add(idx);
     }
+    manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, PeerLocator.Event.STARTED);
+    log.info("Started seeding torrent {}", torrentContext.getTorrent());
+    return manager;
+  }
 
-    this.peers = new ConcurrentHashMap<>();
+  public static TorrentManager makeDownloader(
+      TorrentContext torrentContext, StorageAdapter adapter) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+    for (int idx = 0; idx < manager.totalPieces; idx++) {
+      manager.notStartedPieces.add(idx);
+    }
+    manager.initPeers(
+        manager.announce(
+            0, torrentContext.getTorrent().getTotalLength(), 0, PeerLocator.Event.STARTED));
+    //    manager.initPeers(
+    //        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
+    log.info("Started downloading torrent {}", torrentContext.getTorrent());
+    return manager;
+  }
 
-    initPeers(List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), torrent)));
+  /**
+   * @param downloaded bytes already downloaded
+   * @param left bytes still left to download
+   * @param uploaded bytes already uploaded
+   * @param event what kind of announce are we doing
+   * @return list of Peers we retrieved from Tracker
+   */
+  private List<Peer> announce(long downloaded, long left, long uploaded, PeerLocator.Event event) {
+    PeerLocator locator = new UdpTrackerConnector();
+    return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
   private void initPeers(List<Peer> peerList) {
-    // TODO: potentially make async?
     for (Peer peer : peerList) {
-      try {
-        PeerConnector connector =
-            SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
-        connector.initiateConnection();
-        addPeer(connector, peer);
-        // TODO: revise
-        connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
-      } catch (IOException e) {
-        e.printStackTrace(System.err);
-        log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
-      }
+      // TODO: refactor this when adding the thread pool...
+      new Thread(
+              () -> {
+                try {
+                  PeerConnector connector =
+                      SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+                  connector.initiateConnection();
+                  addPeer(connector, peer);
+                  // TODO: revise
+                  connector.writeMessage(
+                      new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+                } catch (IOException e) {
+                  e.printStackTrace(System.err);
+                  log.error("Error connecting peer {}", peer.getAddress());
+                }
+              })
+          .start();
     }
   }
 
@@ -101,14 +137,27 @@ public class TorrentManager implements Runnable, AutoCloseable {
   // Later if get updated peerlist from tracker.
   public void addPeer(PeerConnector connector, Peer peer) {
     connector.setStorageAdapter(networkStorageAdapter);
-    this.peers.put(peer, new PeerConnectionContext(connector));
+    try {
+      connector.writeMessage(new BitfieldMessage(buildBitfield()));
+      this.peers.put(peer, new PeerConnectionContext(connector));
+      log.info("Added peer {}", peer.getPeerID());
+    } catch (IOException exception) {
+      log.error(exception);
+    }
+  }
+
+  public void removePeer(Peer peer) {
+    peers.remove(peer);
   }
 
   @Override
   public void close() throws Exception {
+    // Announce that we're dropping off
+    announce(0, 0, 0, PeerLocator.Event.STOPPED);
     for (var pair : peers.entrySet()) {
       pair.getValue().peerConnector.close();
     }
+    // TODO: Unregister from TorrentRepository
   }
 
   private void requestBlockFromPeer(Peer peer, PieceStatus pieceStatus, int blockIndex) {
@@ -139,7 +188,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're assuming all our peers are seeders
-      // Request a missing piece from each Peer
+      //  Request a missing piece from each Peer
       List<Peer> connections =
           peers.keySet().stream()
               .filter(
@@ -270,7 +319,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       uncompletedPieces.remove(pieceIndex);
       boolean valid = true;
       try {
-        valid = networkStorageAdapter.verify(pieceIndex, torrent.getPieces().get(pieceIndex));
+        valid = networkStorageAdapter.verify(pieceIndex, torrent.getPieceHashes().get(pieceIndex));
       } catch (Exceptions.IllegalByteOffsets | IOException e) {
         log.error(e);
         e.printStackTrace();
@@ -333,8 +382,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return data;
   }
 
-  Bitfield buildBitfield() {
-    Bitfield bitfield = new Bitfield(new BitSet(totalPieces));
+  private Bitfield buildBitfield() {
+    Bitfield bitfield = new Bitfield(totalPieces);
     for (Integer i : completedPieces) {
       bitfield.setBit(i);
     }
