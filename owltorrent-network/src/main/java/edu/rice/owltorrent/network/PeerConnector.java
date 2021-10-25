@@ -88,6 +88,7 @@ public abstract class PeerConnector implements AutoCloseable {
         peer.setBitfield(((BitfieldMessage) message).getBitfield());
         break;
       case REQUEST:
+        if (!peer.isPeerInterested() || peer.isAmChoked()) break;
         if (!((PieceActionMessage) message).verify(manager.getTorrent())) {
           log.error("Invalid Request Messgae");
           // TODO: close connection?
