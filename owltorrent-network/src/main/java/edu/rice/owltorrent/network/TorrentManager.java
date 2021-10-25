@@ -153,6 +153,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private void requestBlockFromPeer(Peer peer, PieceStatus pieceStatus, int blockIndex) {
     PeerConnectionContext peerContext = peers.get(peer);
     PeerConnector peerConnector = peerContext.peerConnector;
+
     if (peerConnector == null) {
       return;
     }
@@ -180,7 +181,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
       //  Request a missing piece from each Peer
       List<Peer> connections =
           peers.keySet().stream()
-              .filter(peer -> !peers.get(peer).waitingForRequest.get())
+              .filter(
+                  peer ->
+                      !peer.isPeerChoked()
+                          && peer.isAmInterested()
+                          && !peers.get(peer).waitingForRequest.get())
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 

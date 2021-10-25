@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
+import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
@@ -28,6 +29,8 @@ public class RequestMessageHandlerTest {
 
   @Mock Torrent torrent;
 
+  @Mock Peer peer;
+
   @Test
   public void testHandleCorrect()
       throws Exceptions.IllegalByteOffsets, IOException, InterruptedException {
@@ -37,12 +40,15 @@ public class RequestMessageHandlerTest {
     testList.add(new byte[] {});
     conn.manager = manager;
     conn.storageAdapter = storageAdapter;
+    conn.peer = peer;
 
     when(torrent.getPieces()).thenReturn(testList);
     when(torrent.getPieceLength()).thenReturn((long) 128);
     when(conn.manager.getTorrent()).thenReturn(torrent);
     when(conn.storageAdapter.read(any()))
         .thenReturn(new FileBlock(1, 20, new byte[] {(byte) 0x20}));
+    when(conn.peer.isPeerInterested()).thenReturn(true);
+    when(conn.peer.isAmChoked()).thenReturn(false);
 
     conn.handleMessage(correctMsg);
 
@@ -57,10 +63,14 @@ public class RequestMessageHandlerTest {
     testList.add(new byte[] {});
     conn.manager = manager;
     conn.storageAdapter = storageAdapter;
+    conn.peer = peer;
 
     when(torrent.getPieces()).thenReturn(testList);
     when(torrent.getPieceLength()).thenReturn((long) 25);
     when(conn.manager.getTorrent()).thenReturn(torrent);
+
+    when(conn.peer.isPeerInterested()).thenReturn(true);
+    when(conn.peer.isAmChoked()).thenReturn(false);
 
     boolean noError = true;
     try {
@@ -70,7 +80,45 @@ public class RequestMessageHandlerTest {
     }
     Assert.assertFalse(noError);
 
+
     verify(incorrectMsg, times(1)).verify(eq(torrent));
+    verify(storageAdapter, times(0)).read(any());
+  }
+
+  @Test
+  public void testHandleChoke() throws Exceptions.IllegalByteOffsets, IOException {
+    PieceActionMessage correctMsg = spy(PieceActionMessage.makeRequestMessage(1, 20, 10));
+    List<byte[]> testList = new ArrayList<>();
+    testList.add(new byte[] {});
+    testList.add(new byte[] {});
+    conn.manager = manager;
+    conn.storageAdapter = storageAdapter;
+    conn.peer = peer;
+
+    when(conn.peer.isPeerInterested()).thenReturn(true);
+    when(conn.peer.isAmChoked()).thenReturn(true);
+
+    conn.handleMessage(correctMsg);
+
+    verify(correctMsg, times(0)).verify(eq(torrent));
+    verify(storageAdapter, times(0)).read(any());
+  }
+
+  @Test
+  public void testHandleInterested() throws Exceptions.IllegalByteOffsets, IOException {
+    PieceActionMessage correctMsg = spy(PieceActionMessage.makeRequestMessage(1, 20, 10));
+    List<byte[]> testList = new ArrayList<>();
+    testList.add(new byte[] {});
+    testList.add(new byte[] {});
+    conn.manager = manager;
+    conn.storageAdapter = storageAdapter;
+    conn.peer = peer;
+
+    when(conn.peer.isPeerInterested()).thenReturn(false);
+
+    conn.handleMessage(correctMsg);
+
+    verify(correctMsg, times(0)).verify(eq(torrent));
     verify(storageAdapter, times(0)).read(any());
   }
 }

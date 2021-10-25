@@ -73,13 +73,13 @@ public abstract class PeerConnector implements AutoCloseable {
   protected final void handleMessage(PeerMessage message) throws InterruptedException {
     switch (message.getMessageType()) {
       case CHOKE:
-        peer.setChoked(true);
+        peer.setPeerChoked(true);
         break;
       case UNCHOKE:
-        peer.setChoked(false);
+        peer.setPeerChoked(false);
         break;
       case INTERESTED:
-        peer.setInterested(true);
+        peer.setPeerInterested(true);
         try {
           writeMessage(new PayloadlessMessage(PeerMessage.MessageType.UNCHOKE));
         } catch (IOException e) {
@@ -87,7 +87,7 @@ public abstract class PeerConnector implements AutoCloseable {
         }
         break;
       case NOT_INTERESTED:
-        peer.setInterested(false);
+        peer.setPeerInterested(false);
         break;
       case HAVE:
         break;
@@ -95,6 +95,7 @@ public abstract class PeerConnector implements AutoCloseable {
         peer.setBitfield(((BitfieldMessage) message).getBitfield());
         break;
       case REQUEST:
+        if (!peer.isPeerInterested() || peer.isAmChoked()) break;
         if (!message.verify(manager.getTorrent())) {
           log.error("Invalid Request Messgae");
           throw new InterruptedException("Invalid Request Messgae, Connection closed");
