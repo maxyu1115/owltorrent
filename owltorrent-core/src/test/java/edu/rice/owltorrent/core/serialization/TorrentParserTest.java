@@ -26,7 +26,7 @@ public class TorrentParserTest {
 
     assertEquals("https://hello", torrent.getAnnounceURL());
     assertEquals("README.md", torrent.getName());
-    assertEquals(1, torrent.getPieces().size()); // Number of pieces
+    assertEquals(1, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(32768, torrent.getPieceLength());
     assertEquals(1, torrent.getFileLengths().size()); // Effectively number of files
     assertEquals((Long) 75L, (Long) torrent.getFileLengths().get("README.md"));
@@ -39,7 +39,7 @@ public class TorrentParserTest {
 
     assertEquals("udp://tracker.leechers-paradise.org:6969/announce", torrent.getAnnounceURL());
     assertEquals("Data Science Fundamentals with Python and SQL", torrent.getName());
-    assertEquals(1542, torrent.getPieces().size()); // Number of pieces
+    assertEquals(1542, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(524288, torrent.getPieceLength());
     assertEquals(415, torrent.getFileLengths().size()); // Effectively number of files
     assertEquals("bdc0bb1499b1992a5488b4bbcfc9288c30793c08", torrent.getInfoHash().toString());
@@ -51,7 +51,7 @@ public class TorrentParserTest {
 
     assertEquals("udp://tracker.openbittorrent.com:80/announce", torrent.getAnnounceURL());
     assertEquals("OwlTorrentRiggedDemoPresentation.pdf", torrent.getName());
-    assertEquals(16, torrent.getPieces().size()); // Number of pieces
+    assertEquals(16, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(16384, torrent.getPieceLength());
     assertEquals(1, torrent.getFileLengths().size()); // Effectively number of files
     assertEquals(

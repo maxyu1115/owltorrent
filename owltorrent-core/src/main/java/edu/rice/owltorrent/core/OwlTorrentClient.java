@@ -14,7 +14,6 @@ import edu.rice.owltorrent.network.TorrentRepository;
 import edu.rice.owltorrent.network.TorrentRepositoryImpl;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.log4j.Log4j2;
@@ -28,8 +27,9 @@ public class OwlTorrentClient {
 
   private static final String OWL_TORRENT_ID_PREFIX = "OwlTorrent";
 
-  private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
-  private HandShakeListener handShakeListener;
+  private final TorrentRepository torrentRepository = new TorrentRepositoryImpl();
+  private final HandShakeListener handShakeListener;
+  private final Thread listenerThread;
   private static final int listenerPort = 57600;
 
   private final TwentyByteId ourPeerId;
@@ -37,11 +37,12 @@ public class OwlTorrentClient {
   public OwlTorrentClient() {
     // TODO: generate an actual id
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    listenerThread = new Thread(this.handShakeListener);
   }
 
   void startSeeding() {
-    this.handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
-    new Thread(this.handShakeListener).start();
+    listenerThread.start();
   }
 
   public ProgressMeter downloadFile(String torrentFileName)
@@ -56,11 +57,17 @@ public class OwlTorrentClient {
   }
 
   public void seedFile(String torrentFileName, String fileName)
-      throws Exceptions.ParsingTorrentFileFailedException, FileNotFoundException {
+      throws Exceptions.ParsingTorrentFileFailedException, IOException,
+          Exceptions.FileNotMatchingTorrentException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
     TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter);
     torrentRepository.registerTorrentManager(manager);
+    try {
+      listenerThread.join();
+    } catch (InterruptedException e) {
+      log.info("Listener Thread interrupted");
+    }
   }
 
   private TorrentContext findTorrent(String torrentFileName)
@@ -109,7 +116,7 @@ public class OwlTorrentClient {
   }
 
   private StorageAdapter createSeedingStorageAdapter(Torrent torrent, String fileName)
-      throws FileNotFoundException {
+      throws IOException, Exceptions.FileNotMatchingTorrentException {
     DiskFile diskFile = new DiskFile(torrent, fileName);
     return new StorageAdapter() {
 
@@ -125,12 +132,13 @@ public class OwlTorrentClient {
       @Override
       public void write(FileBlock fileBlock) {
         log.error("Illegal action, should not write to a seeding file");
+        throw new IllegalArgumentException("Illegal action, should not write to a seeding file");
       }
 
       @Override
-      public boolean verify(int pieceIndex, byte[] sha1Hash)
-          throws Exceptions.IllegalByteOffsets, IOException {
-        return diskFile.pieceHashCorrect(pieceIndex, sha1Hash);
+      public boolean verify(int pieceIndex, byte[] sha1Hash) {
+        log.error("Illegal action, seeder should not be verifying");
+        throw new IllegalArgumentException("Illegal action, seeder should not be verifying");
       }
     };
   }

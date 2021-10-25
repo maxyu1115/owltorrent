@@ -61,7 +61,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
     this.networkStorageAdapter = adapter;
-    this.totalPieces = torrent.getPieces().size();
+    this.totalPieces = torrent.getPieceHashes().size();
   }
 
   public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
@@ -89,14 +89,21 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return manager;
   }
 
+  /**
+   * @param downloaded bytes already downloaded
+   * @param left bytes still left to download
+   * @param uploaded bytes already uploaded
+   * @param event what kind of announce are we doing
+   * @return list of Peers we retrieved from Tracker
+   */
   private List<Peer> announce(long downloaded, long left, long uploaded, PeerLocator.Event event) {
     PeerLocator locator = new UdpTrackerConnector();
     return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
   private void initPeers(List<Peer> peerList) {
-    // TODO: potentially make async?
     for (Peer peer : peerList) {
+      // TODO: refactor this when adding the thread pool...
       new Thread(
               () -> {
                 try {
@@ -145,9 +152,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   @Override
   public void close() throws Exception {
+    // Announce that we're dropping off
+    announce(0, 0, 0, PeerLocator.Event.STOPPED);
     for (var pair : peers.entrySet()) {
       pair.getValue().peerConnector.close();
     }
+    // TODO: Unregister from TorrentRepository
   }
 
   private void requestBlockFromPeer(Peer peer, PieceStatus pieceStatus, int blockIndex) {
@@ -309,7 +319,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       uncompletedPieces.remove(pieceIndex);
       boolean valid = true;
       try {
-        valid = networkStorageAdapter.verify(pieceIndex, torrent.getPieces().get(pieceIndex));
+        valid = networkStorageAdapter.verify(pieceIndex, torrent.getPieceHashes().get(pieceIndex));
       } catch (Exceptions.IllegalByteOffsets | IOException e) {
         log.error(e);
         e.printStackTrace();

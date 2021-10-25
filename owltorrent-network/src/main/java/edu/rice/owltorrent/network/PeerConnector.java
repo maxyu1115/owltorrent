@@ -59,7 +59,7 @@ public abstract class PeerConnector implements AutoCloseable {
     PeerMessage message = null;
     try {
       message = messageReader.readMessage(inputStream);
-      log.info(message);
+      log.info("Received: {}", message);
     } catch (IOException ioException) {
       log.error(ioException);
     }

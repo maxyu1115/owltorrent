@@ -26,10 +26,24 @@ public class DiskFile {
    * @param filePath filePath
    * @throws FileNotFoundException when unable to find file
    */
-  public DiskFile(Torrent torrent, String filePath) throws FileNotFoundException {
+  public DiskFile(Torrent torrent, String filePath)
+      throws IOException, Exceptions.FileNotMatchingTorrentException {
     this.numBytes = torrent.getTotalLength();
     this.pieceSize = torrent.getPieceLength();
     this.file = new RandomAccessFile(new File(filePath), "r");
+    if (file.length() != numBytes) {
+      throw new Exceptions.FileNotMatchingTorrentException("File length not as expected");
+    }
+    for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
+      try {
+        if (!pieceHashCorrect(i, torrent.getPieceHashes().get(i))) {
+          throw new Exceptions.FileNotMatchingTorrentException(
+              "File hash for piece " + i + " not matching");
+        }
+      } catch (Exceptions.IllegalByteOffsets e) {
+        throw new Exceptions.FileNotMatchingTorrentException("File length not as expected");
+      }
+    }
   }
 
   /**

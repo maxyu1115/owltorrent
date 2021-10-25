@@ -33,6 +33,9 @@ public class BitfieldMessage extends PeerMessage {
   }
 
   public static BitfieldMessage parse(ByteBuffer buffer) {
+    // FIXME: look to eliminate the numBits inconsistencies between Bitfields we create ourselves
+    //  and others send us. Bitfields we receive will always be of numBits of multiples of 8
+    //  (padded), while our bitfields would be the exact bytes.
     Bitfield bitfield = new Bitfield(buffer.remaining() * 8);
     for (int i = 0; i < buffer.remaining() * 8; i++) {
       if ((buffer.get(i / 8) & (1 << (7 - (i % 8)))) > 0) {

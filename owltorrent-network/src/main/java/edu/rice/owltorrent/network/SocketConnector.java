@@ -133,7 +133,7 @@ public class SocketConnector extends PeerConnector {
 
   @Override
   public void writeMessage(PeerMessage message) throws IOException {
-    log.info(message);
+    log.info("Writing: {}", message);
     out.write(message.toBytes());
   }
 

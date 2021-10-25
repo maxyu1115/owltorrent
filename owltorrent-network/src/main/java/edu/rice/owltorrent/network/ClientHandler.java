@@ -6,6 +6,7 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Optional;
 import lombok.extern.log4j.Log4j2;
 
@@ -52,6 +53,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
   @VisibleForTesting
   Optional<TorrentManager> verifyHandShake(byte[] handShake) {
+    log.info("Received Handshake: {}", Arrays.toString(handShake));
     if (handShake[0] != 19) return Optional.empty();
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
