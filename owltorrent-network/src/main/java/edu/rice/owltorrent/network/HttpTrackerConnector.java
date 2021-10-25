@@ -20,9 +20,6 @@ import lombok.NonNull;
  */
 public class HttpTrackerConnector implements PeerLocator {
 
-  public static final String left = "0";
-  public static final String downloaded = "0";
-  public static final String uploaded = "0";
   public static final String compact = "1";
 
   /**
@@ -31,9 +28,14 @@ public class HttpTrackerConnector implements PeerLocator {
    * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locatePeers(@NonNull TorrentContext torrentContext) {
+  public List<Peer> locatePeers(
+      @NonNull TorrentContext torrentContext,
+      long downloaded,
+      long left,
+      long uploaded,
+      Event event) {
     try {
-      return locateWithHTTPTracker(torrentContext);
+      return locateWithHTTPTracker(torrentContext, downloaded, left, uploaded, event);
     } catch (Exception e) {
       return null;
     }
@@ -45,7 +47,13 @@ public class HttpTrackerConnector implements PeerLocator {
    * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locateWithHTTPTracker(@NonNull TorrentContext torrentContext) throws Exception {
+  public List<Peer> locateWithHTTPTracker(
+      @NonNull TorrentContext torrentContext,
+      long downloaded,
+      long left,
+      long uploaded,
+      Event event)
+      throws Exception {
     Torrent torrent = torrentContext.getTorrent();
 
     String baseURL = torrent.getAnnounceURL();
@@ -108,7 +116,7 @@ public class HttpTrackerConnector implements PeerLocator {
       if (inetSocketAddress.toString().equals("/0.0.0.0:0")) {
         break;
       }
-      System.out.println(inetSocketAddress.toString());
+      System.out.println(inetSocketAddress);
 
       // Create peer
       Peer peer = new Peer(inetSocketAddress, torrent);

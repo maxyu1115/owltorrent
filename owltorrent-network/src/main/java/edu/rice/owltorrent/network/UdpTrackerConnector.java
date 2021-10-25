@@ -41,9 +41,14 @@ public class UdpTrackerConnector implements PeerLocator {
    * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locatePeers(@NonNull TorrentContext torrentContext) {
+  public List<Peer> locatePeers(
+      @NonNull TorrentContext torrentContext,
+      long downloaded,
+      long left,
+      long uploaded,
+      Event event) {
     try {
-      return locateWithUDPTracker(torrentContext);
+      return locateWithUDPTracker(torrentContext, downloaded, left, uploaded, event);
     } catch (Exception e) {
       return null;
     }
@@ -55,8 +60,13 @@ public class UdpTrackerConnector implements PeerLocator {
    * @param torrentContext Torrent Context object
    * @return list of peers
    */
-  public List<Peer> locateWithUDPTracker(@NonNull TorrentContext torrentContext)
-      throws IOException, UnknownHostException {
+  public List<Peer> locateWithUDPTracker(
+      @NonNull TorrentContext torrentContext,
+      long downloaded,
+      long left,
+      long uploaded,
+      Event event)
+      throws IOException {
     Torrent torrent = torrentContext.getTorrent();
     List<Peer> peers = new ArrayList<>();
     Random random = new Random(31);
@@ -67,7 +77,7 @@ public class UdpTrackerConnector implements PeerLocator {
     // Configure Inet address to connect to.
     var tracker = URI.create(torrent.getAnnounceURL());
     InetSocketAddress trackerAddress = new InetSocketAddress(tracker.getHost(), tracker.getPort());
-    System.out.println(trackerAddress.toString());
+    System.out.println(trackerAddress);
 
     // Set up connection with tracker.
     datagramSocket.connect(trackerAddress);
@@ -93,6 +103,7 @@ public class UdpTrackerConnector implements PeerLocator {
     if (connectResponse == null) {
       return peers; // Return empty peers
     }
+    //    log.info("Connect Response" + Arrays.toString(connectResponse));
 
     // Parse connect response
     int response_transaction_id =
@@ -109,20 +120,20 @@ public class UdpTrackerConnector implements PeerLocator {
     announceRequestData.putInt(random.nextInt()); // transaction id
     announceRequestData.put(torrent.getInfoHash().getBytes());
     announceRequestData.put(torrentContext.getOurPeerId().getBytes());
-    announceRequestData.putLong(torrent.getTotalLength());
-    announceRequestData.putLong(0L);
-    announceRequestData.putLong(0L);
-    announceRequestData.putInt(0);
+    announceRequestData.putLong(downloaded);
+    announceRequestData.putLong(left);
+    announceRequestData.putLong(uploaded);
+    announceRequestData.putInt(event.getEventCode());
     log.info("Address: {}", InetAddress.getLocalHost());
     // announceRequestData.put(InetAddress.getLocalHost().getAddress());
-    announceRequestData.put(InetAddress.getByName("10.119.176.109").getAddress());
+    announceRequestData.putInt(0);
     // announceRequestData.putInt(0);
     announceRequestData.putInt(random.nextInt());
     announceRequestData.putInt(num_want);
     announceRequestData.putShort(torrentContext.getListenerPort());
     DatagramPacket announceRequestPacket =
         new DatagramPacket(
-            connectRequestData.array(), connectRequestData.capacity(), trackerAddress);
+            announceRequestData.array(), announceRequestData.capacity(), trackerAddress);
 
     // Create announceResponsePacket
     byte[] announceResponseData = new byte[65508];
@@ -137,6 +148,8 @@ public class UdpTrackerConnector implements PeerLocator {
       log.info("No response from socket");
       return peers; // Return empty addresses
     }
+
+    //    log.info("Announce Response" + Arrays.toString(announceResponse));
 
     // Parse peers from announce response
     byte[] addresses = Arrays.copyOfRange(announceResponse, 20, announceResponse.length);

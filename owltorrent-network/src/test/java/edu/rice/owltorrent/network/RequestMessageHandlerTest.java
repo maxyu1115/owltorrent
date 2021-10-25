@@ -12,6 +12,7 @@ import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -28,7 +29,8 @@ public class RequestMessageHandlerTest {
   @Mock Torrent torrent;
 
   @Test
-  public void testHandleCorrect() throws Exceptions.IllegalByteOffsets, IOException {
+  public void testHandleCorrect()
+      throws Exceptions.IllegalByteOffsets, IOException, InterruptedException {
     PieceActionMessage correctMsg = PieceActionMessage.makeRequestMessage(1, 20, 10);
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
@@ -60,7 +62,13 @@ public class RequestMessageHandlerTest {
     when(torrent.getPieceLength()).thenReturn((long) 25);
     when(conn.manager.getTorrent()).thenReturn(torrent);
 
-    conn.handleMessage(incorrectMsg);
+    boolean noError = true;
+    try {
+      conn.handleMessage(incorrectMsg);
+    } catch (InterruptedException e) {
+      noError = false;
+    }
+    Assert.assertFalse(noError);
 
     verify(incorrectMsg, times(1)).verify(eq(torrent));
     verify(storageAdapter, times(0)).read(any());

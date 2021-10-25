@@ -9,7 +9,6 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -19,7 +18,6 @@ public class UdpTrackerConnectorTest {
   @Test
   public void locateWithUDPTracker_Success() {
     Torrent torrent = new Torrent();
-    torrent.setFileLengths(Map.of("XD", 100L));
     torrent.setInfoHash(
         new TwentyByteId(
             TorrentManager.hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
@@ -27,7 +25,8 @@ public class UdpTrackerConnectorTest {
 
     try {
       UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-      peerLocator.locateWithUDPTracker(new TorrentContext(peerId, (short) 6881, torrent));
+      peerLocator.locateWithUDPTracker(
+          new TorrentContext(peerId, (short) 6881, torrent), 0, 0, 0, PeerLocator.Event.NONE);
     } catch (Exception e) {
       e.printStackTrace();
       fail();
@@ -52,13 +51,13 @@ public class UdpTrackerConnectorTest {
   @Test(expected = NullPointerException.class)
   public void locatePeers_nullInput() {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locatePeers(null);
+    peerLocator.locatePeers(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)
   public void locateWithUDPTracker_nullInput() throws IOException {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locateWithUDPTracker(null);
+    peerLocator.locateWithUDPTracker(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)

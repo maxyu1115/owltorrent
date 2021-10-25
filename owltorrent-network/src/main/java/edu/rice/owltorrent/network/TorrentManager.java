@@ -14,7 +14,6 @@ import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
 import java.math.RoundingMode;
-import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -70,7 +69,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
-    manager.announce();
+    manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, PeerLocator.Event.STARTED);
     log.info("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
@@ -81,32 +80,39 @@ public class TorrentManager implements Runnable, AutoCloseable {
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
-    // manager.initPeers(manager.announce());
     manager.initPeers(
-        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
+        manager.announce(
+            0, torrentContext.getTorrent().getTotalLength(), 0, PeerLocator.Event.STARTED));
+    //    manager.initPeers(
+    //        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
     log.info("Started downloading torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
-  private List<Peer> announce() {
+  private List<Peer> announce(long downloaded, long left, long uploaded, PeerLocator.Event event) {
     PeerLocator locator = new UdpTrackerConnector();
-    return locator.locatePeers(torrentContext);
+    return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
   private void initPeers(List<Peer> peerList) {
     // TODO: potentially make async?
     for (Peer peer : peerList) {
-      try {
-        PeerConnector connector =
-            SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
-        connector.initiateConnection();
-        addPeer(connector, peer);
-        // TODO: revise
-        connector.writeMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
-      } catch (IOException e) {
-        e.printStackTrace(System.err);
-        log.error(String.format("Error connecting peer id=%s", peer.getPeerID().toString()));
-      }
+      new Thread(
+              () -> {
+                try {
+                  PeerConnector connector =
+                      SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+                  connector.initiateConnection();
+                  addPeer(connector, peer);
+                  // TODO: revise
+                  connector.writeMessage(
+                      new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+                } catch (IOException e) {
+                  e.printStackTrace(System.err);
+                  log.error("Error connecting peer {}", peer.getAddress());
+                }
+              })
+          .start();
     }
   }
 

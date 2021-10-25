@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Represent the Torrent class after parsing.
@@ -42,7 +43,7 @@ public class Torrent {
    * A list of byte array whose length is a multiple of 20. It is to be subdivided into strings of
    * length 20, each of which is the SHA1 hash of the piece at the corresponding index.
    */
-  private List<byte[]> pieces;
+  @ToString.Exclude private List<byte[]> pieces;
 
   /** The lengths of each file in Torrent. */
   private Map<String, Long> fileLengths;

@@ -24,8 +24,10 @@ public class HttpTrackerConnectorTest {
 
     try {
       HttpTrackerConnector peerLocator = new HttpTrackerConnector();
-      peerLocator.locateWithHTTPTracker(new TorrentContext(peerId, (short) 6881, torrent));
+      peerLocator.locateWithHTTPTracker(
+          new TorrentContext(peerId, (short) 6881, torrent), 0, 0, 0, PeerLocator.Event.NONE);
     } catch (Exception e) {
+      e.printStackTrace();
       fail();
     }
   }
@@ -48,13 +50,13 @@ public class HttpTrackerConnectorTest {
   @Test(expected = NullPointerException.class)
   public void locatePeers_nullInput() {
     HttpTrackerConnector peerLocator = new HttpTrackerConnector();
-    peerLocator.locatePeers(null);
+    peerLocator.locatePeers(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)
   public void locateWithHTTPTracker_nullInput() throws Exception {
     HttpTrackerConnector peerLocator = new HttpTrackerConnector();
-    peerLocator.locateWithHTTPTracker(null);
+    peerLocator.locateWithHTTPTracker(null, 0, 0, 0, PeerLocator.Event.NONE);
   }
 
   @Test(expected = NullPointerException.class)
