@@ -27,13 +27,8 @@ public class UdpTrackerConnector implements PeerLocator {
   public static final int ANNOUNCE_ACTION = 1;
 
   // Announce parameters
-  public static final long left = 0;
-  public static final long downloaded = 0;
-  public static final long uploaded = 0;
-  public static final int event = 1;
-  public static final int ip_address = 0;
-  public static final int key = 0;
-  public static final int num_want = -1;
+  public static final int DEFAULT_IP_ADDRESS = 0;
+  public static final int DEFAULT_NUM_WANT = -1;
 
   /**
    * Determine which protocol to use and then retrieve peers accordingly
@@ -124,12 +119,11 @@ public class UdpTrackerConnector implements PeerLocator {
     announceRequestData.putLong(left);
     announceRequestData.putLong(uploaded);
     announceRequestData.putInt(event.getEventCode());
-    log.info("Address: {}", InetAddress.getLocalHost());
+    // log.debug("Address: {}", InetAddress.getLocalHost());
     // announceRequestData.put(InetAddress.getLocalHost().getAddress());
-    announceRequestData.putInt(0);
-    // announceRequestData.putInt(0);
+    announceRequestData.putInt(DEFAULT_IP_ADDRESS);
     announceRequestData.putInt(random.nextInt());
-    announceRequestData.putInt(num_want);
+    announceRequestData.putInt(DEFAULT_NUM_WANT);
     announceRequestData.putShort(torrentContext.getListenerPort());
     DatagramPacket announceRequestPacket =
         new DatagramPacket(

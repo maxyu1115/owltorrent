@@ -3,12 +3,14 @@ package edu.rice.owltorrent.network.messages;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.nio.ByteBuffer;
+import lombok.ToString;
 
 /**
  * Peer Messages for Have
  *
  * @author yuchengu
  */
+@ToString
 public class HaveMessage extends PeerMessage {
 
   private static final int SIZE = 5; // 1 byte for type + 4 bytes for index

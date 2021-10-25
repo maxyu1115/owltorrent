@@ -7,6 +7,7 @@ import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.BitfieldMessage;
+import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
@@ -79,11 +80,17 @@ public abstract class PeerConnector implements AutoCloseable {
         break;
       case INTERESTED:
         peer.setInterested(true);
+        try {
+          writeMessage(new PayloadlessMessage(PeerMessage.MessageType.UNCHOKE));
+        } catch (IOException e) {
+          throw new InterruptedException(e.getLocalizedMessage());
+        }
         break;
       case NOT_INTERESTED:
         peer.setInterested(false);
         break;
       case HAVE:
+        break;
       case BITFIELD:
         peer.setBitfield(((BitfieldMessage) message).getBitfield());
         break;
@@ -126,6 +133,7 @@ public abstract class PeerConnector implements AutoCloseable {
         }
         break;
       case CANCEL:
+        break;
       default:
         throw new IllegalStateException("Unhandled message type");
     }

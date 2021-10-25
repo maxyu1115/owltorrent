@@ -30,7 +30,7 @@ public class OwlTorrentClient {
 
   private TorrentRepository torrentRepository = new TorrentRepositoryImpl();
   private HandShakeListener handShakeListener;
-  private static final short listenerPort = 6881;
+  private static final int listenerPort = 57600;
 
   private final TwentyByteId ourPeerId;
 
@@ -72,7 +72,7 @@ public class OwlTorrentClient {
     } catch (Exception e) {
       throw new Exceptions.ParsingTorrentFileFailedException();
     }
-    return new TorrentContext(ourPeerId, listenerPort, torrent);
+    return new TorrentContext(ourPeerId, (short) listenerPort, torrent);
   }
 
   private StorageAdapter createDownloadingStorageAdapter(Torrent torrent)
