@@ -1,11 +1,13 @@
 package edu.rice.owltorrent.network.messages;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import org.junit.Test;
 
 /** @author yuchen gu, shijie */
@@ -22,9 +24,20 @@ public class PieceActionMessageTest {
   }
 
   @Test
-  public void testVerifyCorrectType() {
+  public void testVerifyCorrect() {
+    List<byte[]> testList = new ArrayList<>();
+    testList.add(new byte[] {});
     assertTrue(
         PieceActionMessage.makeRequestMessage(0, 12, 99)
-            .verify(new Torrent("", "", 10, new ArrayList<>(), new HashMap<>(), null)));
+            .verify(new Torrent("", "", 1024, testList, new HashMap<>(), null)));
+  }
+
+  @Test
+  public void testVerifyIncorrect() {
+    List<byte[]> testList = new ArrayList<>();
+    testList.add(new byte[] {});
+    assertFalse(
+        PieceActionMessage.makeRequestMessage(0, 12, 20)
+            .verify(new Torrent("", "", 30, testList, new HashMap<>(), null)));
   }
 }

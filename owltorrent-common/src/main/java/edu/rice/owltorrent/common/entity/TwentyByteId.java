@@ -46,4 +46,24 @@ public class TwentyByteId {
   public static TwentyByteId fromString(String str) {
     return new TwentyByteId(str.getBytes(StandardCharsets.UTF_8));
   }
+
+  public String hexEncodeURL() throws Exception {
+    String hexString = this.toString();
+    if (hexString == null || hexString.isEmpty()) {
+      return "";
+    }
+    if (hexString.length() % 2 != 0) {
+      throw new Exception("String is not hex, length NOT divisible by 2: " + hexString);
+    }
+    int len = hexString.length();
+    char[] output = new char[len + len / 2];
+    int i = 0;
+    int j = 0;
+    while (i < len) {
+      output[j++] = '%';
+      output[j++] = hexString.charAt(i++);
+      output[j++] = hexString.charAt(i++);
+    }
+    return new String(output);
+  }
 }

@@ -21,6 +21,8 @@ public class Peer {
   @Getter private final InetSocketAddress address;
 
   @EqualsAndHashCode.Include @Getter private final Torrent torrent;
+  
+  @Getter private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 
   /** this client is interested in the peer */
   private final AtomicBoolean amInterested = new AtomicBoolean(false);
@@ -74,5 +76,21 @@ public class Peer {
 
   public void setPeerChoked(boolean choked) {
     this.peerChoked.set(choked);
+  }
+
+  /**
+   * Returns true if the peer has the piece with specified index.
+   *
+   * @param idx The piece index
+   */
+  public boolean hasPiece(int idx) {
+    return this.bitfield.getBit(idx);
+  }
+
+  public void setBitfield(Bitfield bitfield) {
+    if (this.bitfield != Bitfield.EMPTY_BITFIELD_SINGLETON) {
+      throw new IllegalArgumentException("Peer's bitfield already set.");
+    }
+    this.bitfield = bitfield;
   }
 }
