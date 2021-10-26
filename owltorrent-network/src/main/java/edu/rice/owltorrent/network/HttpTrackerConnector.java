@@ -18,28 +18,9 @@ import lombok.NonNull;
  *
  * @author bhaveshshah
  */
-public class HttpTrackerConnector implements PeerLocator {
+public class HttpTrackerConnector {
 
   public static final String compact = "1";
-
-  /**
-   * Determine which protocol to use and then retrieve peers accordingly
-   *
-   * @param torrentContext Torrent Context object
-   * @return list of peers
-   */
-  public List<Peer> locatePeers(
-      @NonNull TorrentContext torrentContext,
-      long downloaded,
-      long left,
-      long uploaded,
-      Event event) {
-    try {
-      return locateWithHTTPTracker(torrentContext, downloaded, left, uploaded, event);
-    } catch (Exception e) {
-      return null;
-    }
-  }
 
   /**
    * Retrieve peers from HTTP tracker
@@ -52,17 +33,17 @@ public class HttpTrackerConnector implements PeerLocator {
       long downloaded,
       long left,
       long uploaded,
-      Event event)
+      Event event,
+      String announceURL)
       throws Exception {
     Torrent torrent = torrentContext.getTorrent();
 
-    String baseURL = torrent.getAnnounceURL();
     String request =
-        baseURL
+        announceURL
             + "info_hash="
             + torrent.getInfoHash().hexEncodeURL()
             + "&peer_id="
-            + torrentContext.getOurPeerId().toString()
+            + new String(torrentContext.getOurPeerId().getBytes())
             + "&port="
             + torrentContext.getListenerPort()
             + "&left="

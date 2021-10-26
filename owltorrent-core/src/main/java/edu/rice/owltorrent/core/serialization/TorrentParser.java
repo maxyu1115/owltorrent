@@ -19,6 +19,7 @@ import lombok.extern.log4j.Log4j2;
 public class TorrentParser {
 
   public static final String infoField = "info";
+  public static final String announceListField = "announce-list";
   public static final String announceField = "announce";
   public static final String nameField = "name";
   public static final String pieceLengthField = "piece length";
@@ -60,7 +61,18 @@ public class TorrentParser {
    * @return pruned Torrent object
    */
   public static Torrent extractAttributes(@NonNull Map<String, Object> dict) {
-    String announceURL = new String((byte[]) dict.get(announceField));
+    List<String> announceUrls = new ArrayList<>();
+    if (dict.containsKey(announceListField)) { // Multiple trackers
+      ArrayList<ArrayList<byte[]>> urls =
+          (ArrayList<ArrayList<byte[]>>) dict.get(announceListField);
+
+      for (ArrayList<byte[]> urlInfo : urls) {
+        announceUrls.add(new String(urlInfo.get(0)));
+      }
+    } else { // Single tracker
+      announceUrls.add(new String((byte[]) dict.get(announceField)));
+    }
+
     Map<String, Object> infoDict = (Map<String, Object>) dict.get(infoField);
 
     String name = new String((byte[]) infoDict.get(nameField));
@@ -78,7 +90,7 @@ public class TorrentParser {
     byte[] encryptedInfoHashBytes = SHA1Encryptor.encrypt(infoHashString);
 
     return new Torrent(
-        announceURL,
+        announceUrls,
         name,
         pieceLength,
         pieces,
