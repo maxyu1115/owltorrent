@@ -53,6 +53,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final TorrentContext torrentContext;
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
+  private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
@@ -160,6 +162,18 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public void removePeer(Peer peer) {
     peers.remove(peer);
+    seeders.remove(peer);
+  }
+
+  /**
+   * Declares that the specified peer is a seeder
+   *
+   * @param peer already connected peer
+   */
+  public void declareSeeder(Peer peer) {
+    if (peers.containsKey(peer)) {
+      seeders.add(peer);
+    }
   }
 
   @Override
@@ -187,10 +201,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
         actualBlockSize = ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
       }
       // Only write request when not waiting
-      peerContext.waitingForRequest.compareAndExchange(false, true);
-      peerConnector.writeMessage(
-          PieceActionMessage.makeRequestMessage(
-              pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
+      if (peerContext.waitingForRequest.compareAndSet(false, true)) {
+        peerConnector.writeMessage(
+            PieceActionMessage.makeRequestMessage(
+                pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
+      }
     } catch (IOException e) {
       log.error(e);
     }
@@ -199,10 +214,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Override
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
-      // TODO: here we're assuming all our peers are seeders
+      // TODO: here we're only downloading from seeders
       //  Request a missing piece from each Peer
       List<Peer> connections =
-          peers.keySet().stream()
+          seeders.stream()
               .filter(
                   peer ->
                       !peer.isPeerChoked()

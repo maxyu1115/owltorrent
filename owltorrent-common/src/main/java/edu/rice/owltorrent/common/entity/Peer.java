@@ -24,10 +24,11 @@ public class Peer {
 
   @Getter @ToString.Exclude private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 
+  // TODO: add actual interested/choking algorithm
   /** this client is interested in the peer */
-  private final AtomicBoolean amInterested = new AtomicBoolean(false);
+  private final AtomicBoolean amInterested = new AtomicBoolean(true);
   /** this client is choking the peer */
-  private final AtomicBoolean amChoked = new AtomicBoolean(true);
+  private final AtomicBoolean amChoked = new AtomicBoolean(false);
   /** peer is interested in this client */
   private final AtomicBoolean peerInterested = new AtomicBoolean(false);
   /** peer is choking this client */

@@ -21,7 +21,7 @@ public class Bitfield {
     this.bitSet = new BitSet(numBits);
   }
 
-  public boolean getBit(int index) {
+  public synchronized boolean getBit(int index) {
     return this.bitSet.get(index);
   }
 
@@ -30,7 +30,7 @@ public class Bitfield {
    *
    * @param index index of bit
    */
-  public void setBit(int index) {
+  public synchronized void setBit(int index) {
     this.bitSet.set(index);
   }
 
@@ -65,7 +65,7 @@ public class Bitfield {
 
     @Override
     public boolean getBit(int index) {
-      return true;
+      return false;
     }
 
     @Override

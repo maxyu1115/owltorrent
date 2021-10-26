@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
+import edu.rice.owltorrent.common.entity.Bitfield;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
 import edu.rice.owltorrent.common.entity.Peer;
@@ -92,7 +93,14 @@ public abstract class PeerConnector implements AutoCloseable {
       case HAVE:
         break;
       case BITFIELD:
-        peer.setBitfield(((BitfieldMessage) message).getBitfield());
+        Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
+        peer.setBitfield(bitfield);
+        for (int i = 0; i < manager.getTorrent().getPieceHashes().size(); i++) {
+          if (!(bitfield.getBit(i))) {
+            return;
+          }
+        }
+        manager.declareSeeder(peer);
         break;
       case REQUEST:
         if (!peer.isPeerInterested() || peer.isAmChoked()) break;
@@ -138,5 +146,6 @@ public abstract class PeerConnector implements AutoCloseable {
       default:
         throw new IllegalStateException("Unhandled message type");
     }
+    // Be careful when writing anything here due to Bitfield special case!
   }
 }
