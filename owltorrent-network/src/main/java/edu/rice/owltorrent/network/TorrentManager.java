@@ -103,6 +103,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private void initPeers(List<Peer> peerList) {
     for (Peer peer : peerList) {
+      if (peers.containsKey(peer)) {
+        continue;
+      }
       // TODO: refactor this when adding the thread pool...
       new Thread(
               () -> {
@@ -133,15 +136,24 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return completedPieces.size() * 1.0f / totalPieces;
   }
 
-  // For handshake listener
-  // Later if get updated peerlist from tracker.
+  /**
+   * Adds an already connected peer to the torrent manager for it to be managed.
+   *
+   * @param connector a peer connector that already established a connection
+   * @param peer the peer we're adding
+   */
   public void addPeer(PeerConnector connector, Peer peer) {
-    connector.setStorageAdapter(networkStorageAdapter);
     try {
-      connector.writeMessage(new BitfieldMessage(buildBitfield()));
-      this.peers.put(peer, new PeerConnectionContext(connector));
-      log.info("Added peer {}", peer.getPeerID());
-    } catch (IOException exception) {
+      // If peer already added, close the new connection
+      if (peers.putIfAbsent(peer, new PeerConnectionContext(connector)) != null) {
+        connector.close();
+      } else {
+        // finish setting up the connection
+        connector.setStorageAdapter(networkStorageAdapter);
+        connector.writeMessage(new BitfieldMessage(buildBitfield()));
+        log.info("Added peer {}", peer.getPeerID());
+      }
+    } catch (Exception exception) {
       log.error(exception);
     }
   }

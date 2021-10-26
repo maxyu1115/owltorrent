@@ -16,9 +16,9 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Peer {
-  @EqualsAndHashCode.Include @Getter private TwentyByteId peerID;
+  @Getter private TwentyByteId peerID;
   /** NOTE: address may be null!!! (for peers that connected to us) */
-  @Getter private final InetSocketAddress address;
+  @EqualsAndHashCode.Include @Getter private final InetSocketAddress address;
 
   @EqualsAndHashCode.Include @Getter private final Torrent torrent;
 
