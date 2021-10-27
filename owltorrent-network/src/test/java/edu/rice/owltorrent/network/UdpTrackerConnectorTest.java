@@ -45,7 +45,7 @@ public class UdpTrackerConnectorTest {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
     List<Peer> peers = peerLocator.createPeers(addressBytes, torrent);
 
-    Assert.assertEquals(peers.get(0).getAddress().toString(), "/68.32.109.105:29545");
+    Assert.assertEquals(peers.get(0).getAddress().toString(), "/68.32.109.105:29555");
   }
 
   @Test(expected = NullPointerException.class)

@@ -19,4 +19,13 @@ public class BitfieldMessageTest {
     bitfield.setBit(15);
     GenericMessageTestHelper.binaryAndBackWorks(new BitfieldMessage(bitfield));
   }
+
+  @Test
+  public void bytesAndBack2() throws IOException {
+    Bitfield bitfield = new Bitfield(706);
+    for (int i = 0; i < 706; i++) {
+      bitfield.setBit(i);
+    }
+    GenericMessageTestHelper.binaryAndBackWorks(new BitfieldMessage(bitfield));
+  }
 }
