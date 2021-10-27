@@ -38,7 +38,8 @@ public class BitfieldMessage extends PeerMessage {
     //  (padded), while our bitfields would be the exact bytes.
     Bitfield bitfield = new Bitfield(buffer.remaining() * 8);
     for (int i = 0; i < buffer.remaining() * 8; i++) {
-      if ((buffer.get(i / 8) & (1 << (7 - (i % 8)))) > 0) {
+      if ((buffer.get(PeerMessage.LENGTH_FIELD_SIZE + BASE_SIZE + (i / 8)) & (1 << (7 - (i % 8))))
+          > 0) {
         bitfield.setBit(i);
       }
     }

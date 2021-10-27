@@ -106,11 +106,11 @@ public class HttpTrackerConnector implements PeerLocator {
     List<Peer> peers = new ArrayList<>();
 
     // Iterate peers and store IP + port for each peer
-    for (int i = 0; i < addresses.length - 6; i += 6) {
+    for (int i = 0; i <= addresses.length - 6; i += 6) {
       // Create Inet Socket Address
       byte[] ipAsBytes = Arrays.copyOfRange(addresses, i, i + 4);
       InetAddress inetAddress = InetAddress.getByAddress(ipAsBytes);
-      int peerPort = ((addresses[i + 5] & 0xFF) << 8) | (addresses[i + 6] & 0xFF);
+      int peerPort = ((addresses[i + 4] & 0xFF) << 8) | (addresses[i + 5] & 0xFF);
       InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, peerPort);
 
       if (inetSocketAddress.toString().equals("/0.0.0.0:0")) {

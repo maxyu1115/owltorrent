@@ -57,7 +57,7 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
         return null;
       }
       totalReadBytes += readBytes;
-      log.info("Total read bytes " + totalReadBytes);
+      log.debug("Total read bytes " + totalReadBytes);
     }
     log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();
