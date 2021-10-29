@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -74,7 +75,11 @@ public class ClientHandler implements Runnable, AutoCloseable {
   private Peer getPeer(byte[] handShake, TorrentManager torrentManager) {
     byte[] peerId = new byte[20];
     System.arraycopy(handShake, 48, peerId, 0, 20);
-    Peer peer = new Peer(new TwentyByteId(peerId), null, torrentManager.getTorrent());
+    Peer peer =
+        new Peer(
+            new TwentyByteId(peerId),
+            new InetSocketAddress(socket.getInetAddress(), socket.getPort()),
+            torrentManager.getTorrent());
 
     return peer;
   }

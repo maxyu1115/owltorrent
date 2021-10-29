@@ -16,18 +16,19 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Peer {
-  @EqualsAndHashCode.Include @Getter private TwentyByteId peerID;
+  @Getter private TwentyByteId peerID;
   /** NOTE: address may be null!!! (for peers that connected to us) */
-  @Getter private final InetSocketAddress address;
+  @EqualsAndHashCode.Include @Getter private final InetSocketAddress address;
 
   @EqualsAndHashCode.Include @Getter private final Torrent torrent;
 
   @Getter @ToString.Exclude private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 
+  // TODO: add actual interested/choking algorithm
   /** this client is interested in the peer */
-  private final AtomicBoolean amInterested = new AtomicBoolean(false);
+  private final AtomicBoolean amInterested = new AtomicBoolean(true);
   /** this client is choking the peer */
-  private final AtomicBoolean amChoked = new AtomicBoolean(true);
+  private final AtomicBoolean amChoked = new AtomicBoolean(false);
   /** peer is interested in this client */
   private final AtomicBoolean peerInterested = new AtomicBoolean(false);
   /** peer is choking this client */

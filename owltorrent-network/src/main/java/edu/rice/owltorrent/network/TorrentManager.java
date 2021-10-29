@@ -53,6 +53,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final TorrentContext torrentContext;
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
+  private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
@@ -103,6 +105,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private void initPeers(List<Peer> peerList) {
     for (Peer peer : peerList) {
+      if (peers.containsKey(peer)) {
+        continue;
+      }
       // TODO: refactor this when adding the thread pool...
       new Thread(
               () -> {
@@ -133,21 +138,42 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return completedPieces.size() * 1.0f / totalPieces;
   }
 
-  // For handshake listener
-  // Later if get updated peerlist from tracker.
+  /**
+   * Adds an already connected peer to the torrent manager for it to be managed.
+   *
+   * @param connector a peer connector that already established a connection
+   * @param peer the peer we're adding
+   */
   public void addPeer(PeerConnector connector, Peer peer) {
-    connector.setStorageAdapter(networkStorageAdapter);
     try {
-      connector.writeMessage(new BitfieldMessage(buildBitfield()));
-      this.peers.put(peer, new PeerConnectionContext(connector));
-      log.info("Added peer {}", peer.getPeerID());
-    } catch (IOException exception) {
+      // If peer already added, close the new connection
+      if (peers.putIfAbsent(peer, new PeerConnectionContext(connector)) != null) {
+        connector.close();
+      } else {
+        // finish setting up the connection
+        connector.setStorageAdapter(networkStorageAdapter);
+        connector.writeMessage(new BitfieldMessage(buildBitfield()));
+        log.info("Added peer {}", peer.getPeerID());
+      }
+    } catch (Exception exception) {
       log.error(exception);
     }
   }
 
   public void removePeer(Peer peer) {
     peers.remove(peer);
+    seeders.remove(peer);
+  }
+
+  /**
+   * Declares that the specified peer is a seeder
+   *
+   * @param peer already connected peer
+   */
+  public void declareSeeder(Peer peer) {
+    if (peers.containsKey(peer)) {
+      seeders.add(peer);
+    }
   }
 
   @Override
@@ -175,10 +201,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
         actualBlockSize = ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
       }
       // Only write request when not waiting
-      peerContext.waitingForRequest.compareAndExchange(false, true);
-      peerConnector.writeMessage(
-          PieceActionMessage.makeRequestMessage(
-              pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
+      if (peerContext.waitingForRequest.compareAndSet(false, true)) {
+        peerConnector.writeMessage(
+            PieceActionMessage.makeRequestMessage(
+                pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
+      }
     } catch (IOException e) {
       log.error(e);
     }
@@ -187,10 +214,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Override
   public void run() {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
-      // TODO: here we're assuming all our peers are seeders
+      // TODO: here we're only downloading from seeders
       //  Request a missing piece from each Peer
       List<Peer> connections =
-          peers.keySet().stream()
+          seeders.stream()
               .filter(
                   peer ->
                       !peer.isPeerChoked()
