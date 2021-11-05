@@ -29,7 +29,7 @@ public class PieceActionMessageTest {
     testList.add(new byte[] {});
     assertTrue(
         PieceActionMessage.makeRequestMessage(0, 12, 99)
-            .verify(new Torrent("", "", 1024, testList, new HashMap<>(), null)));
+            .verify(new Torrent(new ArrayList<>(), "", 1024, testList, new HashMap<>(), null)));
   }
 
   @Test
@@ -38,6 +38,6 @@ public class PieceActionMessageTest {
     testList.add(new byte[] {});
     assertFalse(
         PieceActionMessage.makeRequestMessage(0, 12, 20)
-            .verify(new Torrent("", "", 30, testList, new HashMap<>(), null)));
+            .verify(new Torrent(new ArrayList<>(), "", 30, testList, new HashMap<>(), null)));
   }
 }

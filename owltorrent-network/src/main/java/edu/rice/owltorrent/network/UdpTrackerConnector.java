@@ -19,7 +19,7 @@ import lombok.extern.log4j.Log4j2;
  * @author bhaveshshah
  */
 @Log4j2(topic = "network")
-public class UdpTrackerConnector implements PeerLocator {
+public class UdpTrackerConnector {
 
   // Connect parameters
   public static final long PROTOCOL_ID = 0x41727101980L;
@@ -29,25 +29,6 @@ public class UdpTrackerConnector implements PeerLocator {
   // Announce parameters
   public static final int DEFAULT_IP_ADDRESS = 0;
   public static final int DEFAULT_NUM_WANT = -1;
-
-  /**
-   * Determine which protocol to use and then retrieve peers accordingly
-   *
-   * @param torrentContext Torrent Context object
-   * @return list of peers
-   */
-  public List<Peer> locatePeers(
-      @NonNull TorrentContext torrentContext,
-      long downloaded,
-      long left,
-      long uploaded,
-      Event event) {
-    try {
-      return locateWithUDPTracker(torrentContext, downloaded, left, uploaded, event);
-    } catch (Exception e) {
-      return null;
-    }
-  }
 
   /**
    * Retrieve peers from UDP tracker
@@ -60,19 +41,20 @@ public class UdpTrackerConnector implements PeerLocator {
       long downloaded,
       long left,
       long uploaded,
-      Event event)
+      Event event,
+      String announceURL)
       throws IOException {
     Torrent torrent = torrentContext.getTorrent();
     List<Peer> peers = new ArrayList<>();
-    Random random = new Random(31);
+    Random random = new Random();
 
     // Create socket on any available port.
     DatagramSocket datagramSocket = new DatagramSocket();
 
     // Configure Inet address to connect to.
-    var tracker = URI.create(torrent.getAnnounceURL());
+    var tracker = URI.create(announceURL);
     InetSocketAddress trackerAddress = new InetSocketAddress(tracker.getHost(), tracker.getPort());
-    System.out.println(trackerAddress);
+    log.info("Tracker address" + trackerAddress);
 
     // Set up connection with tracker.
     datagramSocket.connect(trackerAddress);
@@ -179,8 +161,8 @@ public class UdpTrackerConnector implements PeerLocator {
         datagramSocket.receive(responsePacket);
         break;
       } catch (SocketTimeoutException s) {
-        if (i == 7) { // Couldn't connect after 8 attempts.
-          return null;
+        if (i == 7) { // Couldn't connect after 8 attempts (max # of allowed attempts per protocol).
+          throw new IOException();
         }
       }
     }

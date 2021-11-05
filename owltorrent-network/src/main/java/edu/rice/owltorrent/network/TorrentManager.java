@@ -71,7 +71,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
-    manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, PeerLocator.Event.STARTED);
+    manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, Event.STARTED);
     log.info("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
@@ -83,8 +83,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       manager.notStartedPieces.add(idx);
     }
     manager.initPeers(
-        manager.announce(
-            0, torrentContext.getTorrent().getTotalLength(), 0, PeerLocator.Event.STARTED));
+        manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
     //    manager.initPeers(
     //        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
     log.info("Started downloading torrent {}", torrentContext.getTorrent());
@@ -98,8 +97,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @param event what kind of announce are we doing
    * @return list of Peers we retrieved from Tracker
    */
-  private List<Peer> announce(long downloaded, long left, long uploaded, PeerLocator.Event event) {
-    PeerLocator locator = new UdpTrackerConnector();
+  private List<Peer> announce(long downloaded, long left, long uploaded, Event event) {
+    PeerLocator locator = new MultipleTrackerConnector();
     return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
@@ -179,7 +178,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Override
   public void close() throws Exception {
     // Announce that we're dropping off
-    announce(0, 0, 0, PeerLocator.Event.STOPPED);
+    announce(0, 0, 0, Event.STOPPED);
     for (var pair : peers.entrySet()) {
       pair.getValue().peerConnector.close();
     }
