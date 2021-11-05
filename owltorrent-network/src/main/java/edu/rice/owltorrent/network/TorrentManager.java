@@ -134,8 +134,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   public float getProgressPercent() {
-    // TODO: report completed blocks instead?
-    return completedPieces.size() * 1.0f / totalPieces;
+    return (completedPieces.size() * 1.0f) / totalPieces;
   }
 
   /**
