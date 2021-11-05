@@ -149,6 +149,22 @@ public abstract class PeerConnector implements AutoCloseable {
         }
         break;
       case CANCEL:
+        // Verify if the piece exists
+        int cancelIndex = ((PieceActionMessage) message).getIndex();
+        int blockBegin = ((PieceActionMessage) message).getBegin();
+        int blockLength = ((PieceActionMessage) message).getLength();
+        for (PeerMessage msg : tasksInProgress.keySet()) {
+          if (msg.messageType == PeerMessage.MessageType.REQUEST
+              && ((PieceActionMessage) message).getIndex() == cancelIndex
+              && ((PieceActionMessage) message).getBegin() == blockBegin
+              && ((PieceActionMessage) message).getLength() == blockLength) {
+            Future<Void> taskToCancel = tasksInProgress.get(msg);
+            if (!taskToCancel.isDone()) {
+              taskToCancel.cancel(true);
+              tasksInProgress.remove(msg);
+            }
+          }
+        }
         break;
       default:
         throw new IllegalStateException("Unhandled message type");
