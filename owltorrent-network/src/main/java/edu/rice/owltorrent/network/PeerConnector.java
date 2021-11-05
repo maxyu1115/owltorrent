@@ -13,6 +13,7 @@ import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
+import java.util.concurrent.*;
 import lombok.AccessLevel;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
@@ -27,6 +28,9 @@ public abstract class PeerConnector implements AutoCloseable {
   protected TwentyByteId ourPeerId;
   protected Peer peer;
   protected TorrentManager manager;
+  protected final int poolSize = 3;
+  protected final ConcurrentHashMap<PeerMessage, Future<Void>> tasksInProgress;
+  private final ExecutorService taskPool;
 
   @Setter(AccessLevel.PACKAGE)
   protected StorageAdapter storageAdapter;
@@ -39,6 +43,8 @@ public abstract class PeerConnector implements AutoCloseable {
     this.peer = peer;
     this.manager = manager;
     this.messageReader = messageReader;
+    this.tasksInProgress = new ConcurrentHashMap<>();
+    this.taskPool = Executors.newFixedThreadPool(poolSize);
   }
   /**
    * Connects to the remote peer. Normally this would involve handshaking them.
@@ -68,7 +74,8 @@ public abstract class PeerConnector implements AutoCloseable {
       throw new InterruptedException("Connection closed");
     }
 
-    handleMessage(message);
+    /* Register task to thread pool and use */
+    tasksInProgress.putIfAbsent(message, taskPool.submit(new HandleMessageTask(message)));
   }
 
   protected final void handleMessage(PeerMessage message) throws InterruptedException {
@@ -147,5 +154,20 @@ public abstract class PeerConnector implements AutoCloseable {
         throw new IllegalStateException("Unhandled message type");
     }
     // Be careful when writing anything here due to Bitfield special case!
+  }
+
+  class HandleMessageTask implements Callable<Void> {
+    private final PeerMessage message;
+
+    HandleMessageTask(PeerMessage msg) {
+      this.message = msg;
+    }
+
+    @Override
+    public Void call() throws Exception {
+      handleMessage(this.message);
+      tasksInProgress.remove(this.message);
+      return null;
+    }
   }
 }
