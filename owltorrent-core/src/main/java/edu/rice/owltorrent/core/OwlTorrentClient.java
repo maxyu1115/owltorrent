@@ -15,6 +15,7 @@ import edu.rice.owltorrent.network.TorrentRepositoryImpl;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 
@@ -30,15 +31,30 @@ public class OwlTorrentClient {
   private final TorrentRepository torrentRepository = new TorrentRepositoryImpl();
   private final HandShakeListener handShakeListener;
   private final Thread listenerThread;
-  private static final int listenerPort = 57600;
+  private static final int DEFAULT_LISTENER_PORT = 57600;
+  private static final int MAX_LISTENER_PORT = 65535;
+
+  private final int listenerPort;
 
   private final TwentyByteId ourPeerId;
 
-  public OwlTorrentClient() {
+  public OwlTorrentClient() throws IOException {
     // TODO: generate an actual id
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    this.listenerPort = findAvailablePort();
     handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
+  }
+
+  static int findAvailablePort() throws IOException {
+    for (int i = DEFAULT_LISTENER_PORT; i < MAX_LISTENER_PORT; i++) {
+      try (ServerSocket socket = new ServerSocket(i); ) {
+        return i;
+      } catch (IOException ignored) {
+      }
+    }
+    log.error("No available ports found");
+    throw new IOException("No available ports found");
   }
 
   void startSeeding() {
