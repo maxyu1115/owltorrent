@@ -15,8 +15,8 @@ import lombok.ToString;
 @AllArgsConstructor
 public class Torrent {
 
-  /** The URL of the tracker. */
-  private String announceURL;
+  /** The URL(s) of the tracker(s). */
+  private List<String> announceUrls;
 
   /** A UTF-8 encoded string which is the suggested name to save the file (or directory) as. */
   private String name;

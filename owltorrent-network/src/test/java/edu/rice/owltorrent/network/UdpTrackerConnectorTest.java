@@ -17,16 +17,17 @@ public class UdpTrackerConnectorTest {
 
   @Test
   public void locateWithUDPTracker_Success() {
+    String announceURL = "udp://tracker.openbittorrent.com:80/announce";
+
     Torrent torrent = new Torrent();
     torrent.setInfoHash(
         new TwentyByteId(
             TorrentManager.hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
-    torrent.setAnnounceURL("udp://tracker.openbittorrent.com:80/announce");
 
     try {
       UdpTrackerConnector peerLocator = new UdpTrackerConnector();
       peerLocator.locateWithUDPTracker(
-          new TorrentContext(peerId, (short) 6881, torrent), 0, 0, 0, PeerLocator.Event.NONE);
+          new TorrentContext(peerId, (short) 6881, torrent), 0, 0, 0, Event.NONE, announceURL);
     } catch (Exception e) {
       e.printStackTrace();
       fail();
@@ -37,10 +38,6 @@ public class UdpTrackerConnectorTest {
   public void createPeers_Success() throws UnknownHostException {
     byte[] addressBytes = {68, 32, 109, 105, 115, 115, 105};
     Torrent torrent = new Torrent();
-    torrent.setInfoHash(
-        new TwentyByteId(
-            TorrentManager.hexStringToByteArray("2b692a9c1aff75c54729ba129a3c94d2ea5d2b8c")));
-    torrent.setAnnounceURL("udp://tracker.openbittorrent.com:80/announce");
 
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
     List<Peer> peers = peerLocator.createPeers(addressBytes, torrent);
@@ -49,15 +46,9 @@ public class UdpTrackerConnectorTest {
   }
 
   @Test(expected = NullPointerException.class)
-  public void locatePeers_nullInput() {
-    UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locatePeers(null, 0, 0, 0, PeerLocator.Event.NONE);
-  }
-
-  @Test(expected = NullPointerException.class)
   public void locateWithUDPTracker_nullInput() throws IOException {
     UdpTrackerConnector peerLocator = new UdpTrackerConnector();
-    peerLocator.locateWithUDPTracker(null, 0, 0, 0, PeerLocator.Event.NONE);
+    peerLocator.locateWithUDPTracker(null, 0, 0, 0, Event.NONE, null);
   }
 
   @Test(expected = NullPointerException.class)

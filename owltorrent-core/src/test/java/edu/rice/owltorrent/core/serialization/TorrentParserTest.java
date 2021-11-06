@@ -24,7 +24,8 @@ public class TorrentParserTest {
   public void parse() throws Exception {
     Torrent torrent = TorrentParser.parse(file);
 
-    assertEquals("https://hello", torrent.getAnnounceURL());
+    assertEquals(1, torrent.getAnnounceUrls().size());
+    assertEquals("https://hello", torrent.getAnnounceUrls().get(0));
     assertEquals("README.md", torrent.getName());
     assertEquals(1, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(32768, torrent.getPieceLength());
@@ -37,7 +38,9 @@ public class TorrentParserTest {
   public void parse2() throws Exception {
     Torrent torrent = TorrentParser.parse(file2);
 
-    assertEquals("udp://tracker.leechers-paradise.org:6969/announce", torrent.getAnnounceURL());
+    assertEquals(33, torrent.getAnnounceUrls().size());
+    assertEquals(
+        "udp://tracker.leechers-paradise.org:6969/announce", torrent.getAnnounceUrls().get(0));
     assertEquals("Data Science Fundamentals with Python and SQL", torrent.getName());
     assertEquals(1542, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(524288, torrent.getPieceLength());
@@ -49,7 +52,8 @@ public class TorrentParserTest {
   public void parse3() throws Exception {
     Torrent torrent = TorrentParser.parse(file3);
 
-    assertEquals("udp://tracker.openbittorrent.com:80/announce", torrent.getAnnounceURL());
+    assertEquals(2, torrent.getAnnounceUrls().size());
+    assertEquals("udp://tracker.openbittorrent.com:80/announce", torrent.getAnnounceUrls().get(0));
     assertEquals("OwlTorrentRiggedDemoPresentation.pdf", torrent.getName());
     assertEquals(16, torrent.getPieceHashes().size()); // Number of pieces
     assertEquals(16384, torrent.getPieceLength());
