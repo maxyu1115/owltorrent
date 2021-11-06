@@ -5,7 +5,8 @@ import static org.mockito.Mockito.when;
 
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.junit.Assert;
@@ -23,7 +24,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class ClientHandlerTest {
 
-  @Mock private Socket socket;
+  @Mock private SocketChannel socketChannel;
   @Mock private TorrentManager torrentManager;
 
   private static Torrent torrent = new Torrent();
@@ -36,7 +37,7 @@ public class ClientHandlerTest {
   @Before
   public void init() {
     when(torrentManager.getTorrent()).thenReturn(torrent);
-    clientHandler = new ClientHandler(torrentRepository, socket);
+    clientHandler = new ClientHandler(torrentRepository, socketChannel);
     torrent.setInfoHash(infoHash);
   }
 
@@ -44,13 +45,15 @@ public class ClientHandlerTest {
   public void testVerifyMalformedHandshake() {
     byte[] fstIncorrect = new byte[68];
     fstIncorrect[0] = 18;
-    Assert.assertEquals(Optional.empty(), clientHandler.verifyHandShake(fstIncorrect));
+    Assert.assertEquals(
+        Optional.empty(), clientHandler.verifyHandShake(ByteBuffer.wrap(fstIncorrect)));
 
     byte[] nameIncorrect = new byte[68];
     nameIncorrect[0] = 19;
     System.arraycopy(
         "1234567890123456789".getBytes(StandardCharsets.US_ASCII), 0, nameIncorrect, 1, 19);
-    Assert.assertEquals(Optional.empty(), clientHandler.verifyHandShake(nameIncorrect));
+    Assert.assertEquals(
+        Optional.empty(), clientHandler.verifyHandShake(ByteBuffer.wrap(nameIncorrect)));
   }
 
   @Test
@@ -61,7 +64,8 @@ public class ClientHandlerTest {
         "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII), 0, infoHashNotFound, 1, 19);
     System.arraycopy(infoHash.getBytes(), 0, infoHashNotFound, 28, 20);
 
-    assertEquals(Optional.empty(), clientHandler.verifyHandShake(infoHashNotFound));
+    assertEquals(
+        Optional.empty(), clientHandler.verifyHandShake(ByteBuffer.wrap(infoHashNotFound)));
   }
 
   @Test
@@ -75,7 +79,7 @@ public class ClientHandlerTest {
 
     System.arraycopy(torrent.getInfoHash().getBytes(), 0, handshake, 28, 20);
     System.arraycopy(peerId.getBytes(), 0, handshake, 48, 20);
-    TorrentManager manager = clientHandler.verifyHandShake(handshake).get();
+    TorrentManager manager = clientHandler.verifyHandShake(ByteBuffer.wrap(handshake)).get();
 
     assertEquals(torrent.getInfoHash(), manager.getTorrent().getInfoHash());
   }
