@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network.messagereader;
 
+import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.network.MessageReader;
 import edu.rice.owltorrent.network.PeerMessage;
 import java.io.IOException;
@@ -62,5 +63,20 @@ public class SingleThreadBlockingMessageReader implements MessageReader {
     log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();
     return PeerMessage.parse(buffer);
+  }
+
+  @Override
+  public boolean handShake(ReadableByteChannel inputChannel, Peer peer) throws IOException {
+    ByteBuffer buffer = ByteBuffer.allocate(PeerMessage.HANDSHAKE_BYTE_SIZE);
+    int readBytes = inputChannel.read(buffer);
+    if (readBytes < 0) {
+      log.debug("connection is closed by other peer");
+      return false;
+    }
+    if (readBytes != PeerMessage.HANDSHAKE_BYTE_SIZE
+        || !PeerMessage.confirmHandShake(buffer.array(), peer)) {
+      return false;
+    }
+    return true;
   }
 }

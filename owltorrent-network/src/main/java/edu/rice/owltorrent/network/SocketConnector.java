@@ -26,16 +26,15 @@ public class SocketConnector extends PeerConnector {
   private Thread listenerThread;
 
   private DataOutputStream out;
-  private DataInputStream in;
+  private ReadableByteChannel in;
 
   private final Runnable listenForInput =
       new Runnable() {
         @Override
         public void run() {
-          ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
             try {
-              handleMessage(channel);
+              handleMessage(in);
             } catch (InterruptedException e) {
               log.info(e);
 
@@ -96,17 +95,21 @@ public class SocketConnector extends PeerConnector {
     if (initiated) {
       return;
     }
-    this.in = new DataInputStream(peerSocket.getInputStream());
+    this.in = Channels.newChannel(new DataInputStream(peerSocket.getInputStream()));
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
 
     // read and confirm handshake from peer
-    byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
-    int readByteLength = in.read(incomingHandshakeBuffer);
-    log.info("Read bytes: " + readByteLength);
-    if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
-        || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+    //    byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
+    //    int readByteLength = in.read(incomingHandshakeBuffer);
+    //    log.info("Read bytes: " + readByteLength);
+    //    if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
+    //        || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+    //      throw new IOException(
+    //          String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
+    //    }
+    if (!messageReader.handShake(in, peer)) {
       throw new IOException(
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
@@ -121,7 +124,7 @@ public class SocketConnector extends PeerConnector {
     if (initiated) {
       return;
     }
-    this.in = new DataInputStream(peerSocket.getInputStream());
+    this.in = Channels.newChannel(new DataInputStream(peerSocket.getInputStream()));
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
