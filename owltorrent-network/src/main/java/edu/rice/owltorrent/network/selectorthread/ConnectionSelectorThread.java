@@ -9,7 +9,7 @@ import java.util.Set;
 import lombok.Getter;
 
 /** @author yunlyu */
-public class ConnectionSelectorThread implements Runnable {
+public class ConnectionSelectorThread implements SelectorThread {
   @Getter private final Selector selector;
 
   public ConnectionSelectorThread() throws IOException {

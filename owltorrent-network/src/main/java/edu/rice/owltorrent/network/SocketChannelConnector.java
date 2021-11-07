@@ -10,13 +10,14 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2(topic = "network")
 public class SocketChannelConnector extends PeerConnector {
   //    private ServerSocketChannel socketChannel;
-  private SocketChannel socketChannel;
-  private final Selector selector;
+  @Getter private SocketChannel socketChannel;
   private StorageAdapter storageAdapter;
   private boolean initiated = false;
   private final Queue<PeerMessage> incomingMsg = new ConcurrentLinkedQueue<>();
@@ -27,10 +28,8 @@ public class SocketChannelConnector extends PeerConnector {
       Peer peer,
       TorrentManager manager,
       MessageReader messageReader,
-      Selector selector,
       StorageAdapter storageAdapter) {
     super(ourPeerId, peer, manager, messageReader);
-    this.selector = selector;
     this.storageAdapter = storageAdapter;
   }
 
@@ -38,10 +37,8 @@ public class SocketChannelConnector extends PeerConnector {
           TwentyByteId ourPeerId,
           Peer peer,
           TorrentManager manager,
-          MessageReader messageReader,
-          Selector selector) {
+          MessageReader messageReader) {
     super(ourPeerId, peer, manager, messageReader);
-    this.selector = selector;
   }
 
   @Override
@@ -54,7 +51,6 @@ public class SocketChannelConnector extends PeerConnector {
     socketChannel.configureBlocking(false);
     socketChannel.bind(peer.getAddress());
     // TODO: see if this works (using the connector as attachment)
-    socketChannel.register(selector, SelectionKey.OP_CONNECT, this);
   }
 
   public void finishConnection() throws IOException {
@@ -89,19 +85,19 @@ public class SocketChannelConnector extends PeerConnector {
     outgoingMsg.add(msg);
   }
 
-  void processOutgoingMsg() throws IOException {
+  public void processOutgoingMsg() throws IOException {
     PeerMessage msg = outgoingMsg.poll();
     writeMessage(msg);
   }
 
   /** Reads message from input stream and puts message onto queue. */
-  void readIncomingMsg() {
+  public void readIncomingMsg() {
     PeerMessage message = null;
     try {
-      message = messageReader.readMessage(socketChannel);
+      message = handleMessage(socketChannel);
       incomingMsg.add(message);
       log.info("Received: {}", message);
-    } catch (IOException ioException) {
+    } catch (InterruptedException ioException) {
       log.error(ioException);
     }
   }
