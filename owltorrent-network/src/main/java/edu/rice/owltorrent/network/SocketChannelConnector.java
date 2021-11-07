@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.IOException;
@@ -16,6 +17,7 @@ public class SocketChannelConnector extends PeerConnector {
   //    private ServerSocketChannel socketChannel;
   private SocketChannel socketChannel;
   private final Selector selector;
+  private StorageAdapter storageAdapter;
   private boolean initiated = false;
   private final Queue<PeerMessage> incomingMsg = new ConcurrentLinkedQueue<>();
   private final Queue<PeerMessage> outgoingMsg = new ConcurrentLinkedQueue<>();
@@ -25,7 +27,19 @@ public class SocketChannelConnector extends PeerConnector {
       Peer peer,
       TorrentManager manager,
       MessageReader messageReader,
-      Selector selector) {
+      Selector selector,
+      StorageAdapter storageAdapter) {
+    super(ourPeerId, peer, manager, messageReader);
+    this.selector = selector;
+    this.storageAdapter = storageAdapter;
+  }
+
+  public SocketChannelConnector(
+          TwentyByteId ourPeerId,
+          Peer peer,
+          TorrentManager manager,
+          MessageReader messageReader,
+          Selector selector) {
     super(ourPeerId, peer, manager, messageReader);
     this.selector = selector;
   }
@@ -40,7 +54,7 @@ public class SocketChannelConnector extends PeerConnector {
     socketChannel.configureBlocking(false);
     socketChannel.bind(peer.getAddress());
     // TODO: see if this works (using the connector as attachment)
-    socketChannel.register(selector, SelectionKey.OP_ACCEPT, this);
+    socketChannel.register(selector, SelectionKey.OP_CONNECT, this);
   }
 
   public void finishConnection() throws IOException {

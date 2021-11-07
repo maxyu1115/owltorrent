@@ -12,7 +12,7 @@ import lombok.Getter;
 public class ConnectionSelectorThread implements Runnable {
   @Getter private final Selector selector;
 
-  ConnectionSelectorThread() throws IOException {
+  public ConnectionSelectorThread() throws IOException {
     selector = Selector.open();
   }
 

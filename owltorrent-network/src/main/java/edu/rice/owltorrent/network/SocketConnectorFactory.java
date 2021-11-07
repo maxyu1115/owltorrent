@@ -4,6 +4,7 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.channels.SocketChannel;
 
 /** @author Max Yu */
 public class SocketConnectorFactory implements PeerConnectorFactory {
@@ -17,7 +18,7 @@ public class SocketConnectorFactory implements PeerConnectorFactory {
 
   @Override
   public PeerConnector makeRespondingConnection(
-      Peer peer, TorrentManager manager, Socket peerSocket) {
-    return SocketConnector.makeRespondingConnection(peer, manager, peerSocket);
+      Peer peer, TorrentManager manager, SocketChannel peerSocket) {
+    return SocketConnector.makeRespondingConnection(peer, manager, peerSocket.socket());
   }
 }
