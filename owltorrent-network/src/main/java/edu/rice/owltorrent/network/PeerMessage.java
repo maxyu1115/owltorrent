@@ -152,7 +152,7 @@ public abstract class PeerMessage {
     return message.array();
   }
 
-  static boolean confirmHandShake(byte[] buffer, Peer peer) {
+  public static boolean confirmHandShake(byte[] buffer, Peer peer) {
     if (buffer[0] != HANDSHAKE_LENGTH_BYTE) return false;
 
     byte[] title = BIT_TORRENT_PROTOCOL.getBytes(StandardCharsets.US_ASCII);

@@ -56,18 +56,24 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   private final StorageAdapter networkStorageAdapter;
+  private final PeerConnectorFactory peerConnectorFactory;
   @Getter private final Torrent torrent;
 
-  private TorrentManager(TorrentContext torrentContext, StorageAdapter adapter) {
+  private TorrentManager(
+      TorrentContext torrentContext,
+      StorageAdapter adapter,
+      PeerConnectorFactory peerConnectorFactory) {
     this.torrentContext = torrentContext;
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
     this.networkStorageAdapter = adapter;
+    this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
   }
 
   public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+    TorrentManager manager =
+        new TorrentManager(torrentContext, adapter, SocketConnectorFactory.SINGLETON);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
@@ -78,7 +84,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   public static TorrentManager makeDownloader(
       TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+    TorrentManager manager =
+        new TorrentManager(torrentContext, adapter, SocketConnectorFactory.SINGLETON);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
