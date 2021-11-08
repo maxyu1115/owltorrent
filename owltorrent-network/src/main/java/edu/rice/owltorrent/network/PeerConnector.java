@@ -97,6 +97,7 @@ public abstract class PeerConnector implements AutoCloseable {
         peer.setBitfield(bitfield);
         for (int i = 0; i < manager.getTorrent().getPieceHashes().size(); i++) {
           if (!(bitfield.getBit(i))) {
+            manager.declareLeecher(peer);
             return;
           }
         }

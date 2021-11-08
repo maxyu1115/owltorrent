@@ -10,6 +10,7 @@ import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.BitfieldMessage;
+import edu.rice.owltorrent.network.messages.HaveMessage;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import java.io.IOException;
@@ -54,6 +55,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<Peer> leechers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
@@ -172,6 +174,17 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public void declareSeeder(Peer peer) {
     if (peers.containsKey(peer)) {
       seeders.add(peer);
+    }
+  }
+
+  /**
+   * Declares that the specified peer is a leecher
+   *
+   * @param peer already connected peer
+   */
+  public void declareLeecher(Peer peer) {
+    if (peers.containsKey(peer)) {
+      leechers.add(peer);
     }
   }
 
@@ -357,6 +370,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(pieceIndex, status);
       } else {
         completedPieces.add(pieceIndex);
+        for (Peer leecher: leechers) {
+          if (peers.containsKey(leecher)) {
+            PeerConnectionContext conn = peers.get(leecher);
+            try {
+              conn.peerConnector.writeMessage(new HaveMessage(pieceIndex));
+            } catch (IOException e) {
+              log.error(e);
+            }
+          }
+        }
       }
     }
   }
