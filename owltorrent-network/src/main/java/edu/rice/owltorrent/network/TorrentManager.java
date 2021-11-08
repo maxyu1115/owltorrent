@@ -370,7 +370,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(pieceIndex, status);
       } else {
         completedPieces.add(pieceIndex);
-        for (Peer leecher: leechers) {
+        for (Peer leecher : leechers) {
           if (peers.containsKey(leecher)) {
             PeerConnectionContext conn = peers.get(leecher);
             try {
