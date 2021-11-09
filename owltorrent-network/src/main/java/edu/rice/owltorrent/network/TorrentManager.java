@@ -161,6 +161,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
+  /**
+   * Remove a peer
+   *
+   * @param peer the peer to be removed
+   */
   public void removePeer(Peer peer) {
     peers.remove(peer);
     seeders.remove(peer);
