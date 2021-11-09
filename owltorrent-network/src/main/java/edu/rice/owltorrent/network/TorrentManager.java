@@ -164,6 +164,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public void removePeer(Peer peer) {
     peers.remove(peer);
     seeders.remove(peer);
+    leechers.remove(peer);
   }
 
   /**
