@@ -44,6 +44,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
   private static final int BLOCK_DONE = 2;
+  private static final int SEEDER_LIMIT = 10;
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
@@ -243,6 +244,19 @@ public class TorrentManager implements Runnable, AutoCloseable {
                           && !peers.get(peer).waitingForRequest.get())
               .collect(Collectors.toList());
       Collections.shuffle(connections);
+
+      if (connections.size() < SEEDER_LIMIT) {
+        List<Peer> leecherConnections =
+            leechers.stream()
+                .filter(
+                    peer ->
+                        !peer.isPeerChoked()
+                            && peer.isAmInterested()
+                            && !peers.get(peer).waitingForRequest.get())
+                .collect(Collectors.toList());
+        Collections.shuffle(leecherConnections);
+        connections.addAll(leecherConnections);
+      }
 
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
