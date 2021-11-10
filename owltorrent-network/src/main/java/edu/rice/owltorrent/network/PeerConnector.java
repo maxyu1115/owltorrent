@@ -56,7 +56,8 @@ public abstract class PeerConnector implements AutoCloseable {
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 
-  protected final PeerMessage handleMessage(ReadableByteChannel inputStream) throws InterruptedException {
+  protected final PeerMessage parseMessage(ReadableByteChannel inputStream)
+      throws InterruptedException {
     PeerMessage message = null;
     try {
       message = messageReader.readMessage(inputStream);

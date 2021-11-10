@@ -34,7 +34,7 @@ public class SocketConnector extends PeerConnector {
         public void run() {
           while (true) {
             try {
-              PeerMessage message = handleMessage(in);
+              PeerMessage message = parseMessage(in);
               handleMessage(message);
             } catch (InterruptedException e) {
               log.info(e);

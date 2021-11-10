@@ -3,7 +3,6 @@ package edu.rice.owltorrent.network;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.channels.SocketChannel;
 
 /** @author Max Yu */
