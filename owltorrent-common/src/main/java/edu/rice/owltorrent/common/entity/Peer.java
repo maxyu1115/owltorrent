@@ -94,4 +94,8 @@ public class Peer {
     }
     this.bitfield = bitfield;
   }
+
+  public void setBit(int index) {
+    this.bitfield.setBit(index);
+  }
 }

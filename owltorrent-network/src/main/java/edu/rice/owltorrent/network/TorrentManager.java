@@ -218,6 +218,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
+      List<Peer> leecherConnections =
+          leechers.stream()
+              .filter(
+                  peer ->
+                      !peer.isPeerChoked()
+                          && peer.isAmInterested()
+                          && !peers.get(peer).waitingForRequest.get())
+              .collect(Collectors.toList());
+      Collections.shuffle(leecherConnections);
+
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
           if (connections.isEmpty()) break;
@@ -235,6 +245,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+      }
+
+      while (!notStartedPieces.isEmpty() && !leecherConnections.isEmpty()) {
+        int notStartedIndex = notStartedPieces.remove();
+        Peer leecher = leecherConnections.remove(0);
+        if (leecher.getBitfield().getBit(notStartedIndex)) {
+          PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+          uncompletedPieces.put(notStartedIndex, newPieceStatus);
+          requestBlockFromPeer(leecher, newPieceStatus, 0);
+        }
       }
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
@@ -460,6 +480,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               peer.setPeerInterested(false);
               break;
             case HAVE:
+              peer.setBit(((HaveMessage) message).getIndex());
               break;
             case BITFIELD:
               Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
