@@ -44,7 +44,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
   private static final int BLOCK_DONE = 2;
-  private static final int SEEDER_LIMIT = 10;
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
@@ -245,18 +244,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
-      if (connections.size() < SEEDER_LIMIT) {
-        List<Peer> leecherConnections =
-            leechers.stream()
-                .filter(
-                    peer ->
-                        !peer.isPeerChoked()
-                            && peer.isAmInterested()
-                            && !peers.get(peer).waitingForRequest.get())
-                .collect(Collectors.toList());
-        Collections.shuffle(leecherConnections);
-        connections.addAll(leecherConnections);
-      }
+      List<Peer> leecherConnections =
+          leechers.stream()
+              .filter(
+                  peer ->
+                      !peer.isPeerChoked()
+                          && peer.isAmInterested()
+                          && !peers.get(peer).waitingForRequest.get())
+              .collect(Collectors.toList());
+      Collections.shuffle(leecherConnections);
 
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
@@ -276,7 +272,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
-
+      while (!notStartedPieces.isEmpty() && !leecherConnections.isEmpty()) {
+        int notStartedIndex = notStartedPieces.remove();
+        PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+        uncompletedPieces.put(notStartedIndex, newPieceStatus);
+        requestBlockFromPeer(leecherConnections.remove(0), newPieceStatus, 0);
+      }
       try {
         Thread.sleep(10);
       } catch (InterruptedException e) {
