@@ -31,15 +31,13 @@ public abstract class PeerConnector implements AutoCloseable {
   @Setter(AccessLevel.PACKAGE)
   protected StorageAdapter storageAdapter;
 
-  protected MessageReader messageReader;
-
   public PeerConnector(
       TwentyByteId ourPeerId, Peer peer, TorrentManager manager, MessageReader messageReader) {
     this.ourPeerId = ourPeerId;
     this.peer = peer;
     this.manager = manager;
-    this.messageReader = messageReader;
   }
+
   /**
    * Connects to the remote peer. Normally this would involve handshaking them.
    *
