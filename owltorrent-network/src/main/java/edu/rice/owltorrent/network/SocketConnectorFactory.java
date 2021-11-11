@@ -10,6 +10,12 @@ public class SocketConnectorFactory implements PeerConnectorFactory {
   public static final SocketConnectorFactory SINGLETON = new SocketConnectorFactory();
 
   @Override
+  public Runnable makeInitiateConnectionTask(
+      Peer peer, TorrentManager manager, StorageAdapter storageAdapter) {
+    return null;
+  }
+
+  @Override
   public PeerConnector makeInitialConnection(
       Peer peer, TorrentManager manager, StorageAdapter storageAdapter) throws IOException {
     return SocketConnector.makeInitialConnection(peer, manager, storageAdapter);

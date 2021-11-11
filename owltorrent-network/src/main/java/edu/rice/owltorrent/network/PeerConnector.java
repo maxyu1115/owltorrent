@@ -45,14 +45,14 @@ public abstract class PeerConnector implements AutoCloseable {
    *
    * @throws IOException when connection fails
    */
-  protected abstract void initiateConnection() throws IOException;
+  public abstract void initiateConnection() throws IOException;
 
   /**
    * Responds to the remote peer's handshake.
    *
    * @throws IOException when connection fails
    */
-  protected abstract void respondToConnection() throws IOException;
+  public abstract void respondToConnection() throws IOException;
 
   public abstract void writeMessage(PeerMessage message) throws IOException;
 

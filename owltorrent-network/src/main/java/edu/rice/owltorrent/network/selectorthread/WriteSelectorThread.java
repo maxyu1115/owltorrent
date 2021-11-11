@@ -1,72 +1,48 @@
 package edu.rice.owltorrent.network.selectorthread;
 
 import edu.rice.owltorrent.network.SocketChannelConnector;
-import lombok.Getter;
-
+import edu.rice.owltorrent.network.task.SendMsgTask;
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ExecutorService;
+import lombok.Getter;
 
 public class WriteSelectorThread implements SelectorThread {
-    @Getter
-    private final Selector selector;
-    private final ThreadPoolExecutor threadPoolExecutor;
+  @Getter private final Selector selector;
+  private final ExecutorService threadPoolExecutor;
 
-    public WriteSelectorThread(ThreadPoolExecutor threadPool) throws IOException {
-        selector = Selector.open();
-        threadPoolExecutor = threadPool;
-    }
+  public WriteSelectorThread(ExecutorService threadPool) throws IOException {
+    selector = Selector.open();
+    threadPoolExecutor = threadPool;
+  }
 
+  @Override
+  public void run() {
+    while (true) {
+      try {
+        selector.select();
+        Set<SelectionKey> selectedKeys = selector.selectedKeys();
 
-    private class WriteMessage implements Runnable {
-        private final SocketChannelConnector connector;
+        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
-        WriteMessage(SocketChannelConnector connector) {
-            this.connector = connector;
+        while (keyIterator.hasNext()) {
+
+          SelectionKey key = keyIterator.next();
+
+          if (key.isWritable()) {
+            SocketChannelConnector connector = (SocketChannelConnector) key.attachment();
+            Runnable writeMessage = new SendMsgTask(connector);
+            threadPoolExecutor.submit(writeMessage);
+          }
+
+          keyIterator.remove();
         }
-
-        @Override
-        public void run() {
-            try {
-                connector.processOutgoingMsg();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
     }
-
-    @Override
-    public Selector getSelector() {
-        return null;
-    }
-
-    @Override
-    public void run() {
-        while (true) {
-            try {
-                selector.select();
-                Set<SelectionKey> selectedKeys = selector.selectedKeys();
-
-                Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-
-                while (keyIterator.hasNext()) {
-
-                    SelectionKey key = keyIterator.next();
-
-                    if (key.isWritable()) {
-                        SocketChannelConnector connector = (SocketChannelConnector) key.attachment();
-                        Runnable writeMessage = new WriteMessage(connector);
-                        threadPoolExecutor.submit(writeMessage);
-                    }
-
-                    keyIterator.remove();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+  }
 }

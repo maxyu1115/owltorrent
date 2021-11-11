@@ -119,7 +119,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               () -> {
                 try {
                   PeerConnector connector =
-                      SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+                      peerConnectorFactory.makeInitialConnection(peer, this, networkStorageAdapter);
                   connector.initiateConnection();
                   addPeer(connector, peer);
                   // TODO: revise

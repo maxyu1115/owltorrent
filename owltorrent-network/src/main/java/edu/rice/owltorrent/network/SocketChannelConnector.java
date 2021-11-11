@@ -2,7 +2,9 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.*;
-
+import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.network.messages.PieceActionMessage;
+import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -11,17 +13,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Function;
-
-import edu.rice.owltorrent.common.util.Exceptions;
-import edu.rice.owltorrent.network.messages.BitfieldMessage;
-import edu.rice.owltorrent.network.messages.PayloadlessMessage;
-import edu.rice.owltorrent.network.messages.PieceActionMessage;
-import edu.rice.owltorrent.network.messages.PieceMessage;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
-
-import javax.swing.text.html.Option;
 
 @Log4j2(topic = "network")
 public class SocketChannelConnector extends PeerConnector {
@@ -66,7 +59,7 @@ public class SocketChannelConnector extends PeerConnector {
   }
 
   @Override
-  protected void initiateConnection() throws IOException {
+  public void initiateConnection() throws IOException {
     socketChannel = SocketChannel.open();
     socketChannel.configureBlocking(false);
     socketChannel.bind(peer.getAddress());
@@ -87,7 +80,8 @@ public class SocketChannelConnector extends PeerConnector {
     initiated = true;
   }
 
-  private Optional<PeerMessage> handleMessageWithoutReply(PeerMessage message) throws InterruptedException {
+  private Optional<PeerMessage> handleMessageWithoutReply(PeerMessage message)
+      throws InterruptedException {
     switch (message.getMessageType()) {
       case REQUEST:
         if (!peer.isPeerInterested() || peer.isAmChoked()) break;
@@ -104,8 +98,8 @@ public class SocketChannelConnector extends PeerConnector {
           piece = storageAdapter.read(new FileBlockInfo(index, begin, length));
           // Send the piece
           return Optional.of(
-                  new PieceMessage(
-                          piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
+              new PieceMessage(
+                  piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
         } catch (Exceptions.IllegalByteOffsets | IOException blockReadException) {
           log.error(blockReadException);
           throw new InterruptedException("Invalid block read, Connection closed");
@@ -117,7 +111,7 @@ public class SocketChannelConnector extends PeerConnector {
   }
 
   @Override
-  protected void respondToConnection() throws IOException {
+  public void respondToConnection() throws IOException {
     if (!initiated) {
       return;
     }
@@ -140,7 +134,9 @@ public class SocketChannelConnector extends PeerConnector {
 
   public void processOutgoingMsg() throws IOException {
     PeerMessage msg = outgoingMsg.poll();
-    writeMessage(msg);
+    if (msg != null) {
+      writeMessage(msg);
+    }
   }
 
   /** Reads message from input stream and puts message onto queue. */
@@ -149,9 +145,7 @@ public class SocketChannelConnector extends PeerConnector {
     try {
       message = parseMessage(socketChannel);
       Optional<PeerMessage> reply = handleMessageWithoutReply(message);
-      if (reply.isPresent()) {
-        addOutGoingMessage(reply.get());
-      }
+      reply.ifPresent(this::addOutGoingMessage);
       log.info("Received: {}", message);
     } catch (InterruptedException ioException) {
       log.error(ioException);

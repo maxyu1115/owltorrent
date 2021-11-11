@@ -92,7 +92,7 @@ public class SocketConnector extends PeerConnector {
   }
 
   @Override
-  protected void initiateConnection() throws IOException {
+  public void initiateConnection() throws IOException {
     if (initiated) {
       return;
     }
@@ -121,7 +121,7 @@ public class SocketConnector extends PeerConnector {
   }
 
   @Override
-  protected void respondToConnection() throws IOException {
+  public void respondToConnection() throws IOException {
     if (initiated) {
       return;
     }

@@ -6,14 +6,17 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import lombok.Getter;
 
 /** @author yunlyu */
 public class ConnectionSelectorThread implements SelectorThread {
   @Getter private final Selector selector;
+  private final ExecutorService threadPoolExecutor;
 
-  public ConnectionSelectorThread() throws IOException {
+  public ConnectionSelectorThread(ExecutorService threadPool) throws IOException {
     selector = Selector.open();
+    threadPoolExecutor = threadPool;
   }
 
   @Override

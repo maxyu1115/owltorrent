@@ -7,6 +7,9 @@ import java.nio.channels.SocketChannel;
 
 /** @author Max Yu */
 public interface PeerConnectorFactory {
+  Runnable makeInitiateConnectionTask(
+      Peer peer, TorrentManager manager, StorageAdapter storageAdapter);
+
   PeerConnector makeInitialConnection(
       Peer peer, TorrentManager manager, StorageAdapter storageAdapter) throws IOException;
 

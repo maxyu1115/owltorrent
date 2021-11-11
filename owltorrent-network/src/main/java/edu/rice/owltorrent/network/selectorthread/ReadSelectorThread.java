@@ -1,34 +1,22 @@
 package edu.rice.owltorrent.network.selectorthread;
 
 import edu.rice.owltorrent.network.SocketChannelConnector;
+import edu.rice.owltorrent.network.task.ParseMsgTask;
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ExecutorService;
 import lombok.Getter;
 
 public class ReadSelectorThread implements SelectorThread {
   @Getter private final Selector selector;
-  private final ThreadPoolExecutor threadPoolExecutor;
+  private final ExecutorService threadPoolExecutor;
 
-  public ReadSelectorThread(ThreadPoolExecutor threadPool) throws IOException {
+  public ReadSelectorThread(ExecutorService threadPool) throws IOException {
     selector = Selector.open();
     threadPoolExecutor = threadPool;
-  }
-
-  private class ReadMessageFromChannel implements Runnable {
-    private final SocketChannelConnector connector;
-
-    ReadMessageFromChannel(SocketChannelConnector connector) {
-      this.connector = connector;
-    }
-
-    @Override
-    public void run() {
-      connector.readIncomingMsg();
-    }
   }
 
   @Override
@@ -46,7 +34,7 @@ public class ReadSelectorThread implements SelectorThread {
 
           if (key.isReadable()) {
             SocketChannelConnector connector = (SocketChannelConnector) key.attachment();
-            Runnable readMessageThread = new ReadMessageFromChannel(connector);
+            Runnable readMessageThread = new ParseMsgTask(connector);
             threadPoolExecutor.submit(readMessageThread);
           }
 
