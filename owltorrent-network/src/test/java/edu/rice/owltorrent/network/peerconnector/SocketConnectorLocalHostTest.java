@@ -12,6 +12,8 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Optional;
+
+import edu.rice.owltorrent.network.peerconnector.SocketConnector;
 import org.junit.Before;
 import org.mockito.Mock;
 
