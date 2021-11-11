@@ -1,17 +1,14 @@
 package edu.rice.owltorrent.network;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
-import edu.rice.owltorrent.common.entity.Bitfield;
-import edu.rice.owltorrent.common.entity.FileBlockInfo;
-import edu.rice.owltorrent.common.entity.Peer;
-import edu.rice.owltorrent.common.entity.Torrent;
-import edu.rice.owltorrent.common.entity.TorrentContext;
-import edu.rice.owltorrent.common.entity.TwentyByteId;
+import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.BitfieldMessage;
 import edu.rice.owltorrent.network.messages.PayloadlessMessage;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
+import edu.rice.owltorrent.network.messages.PieceMessage;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
@@ -20,6 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -56,18 +54,27 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   private final StorageAdapter networkStorageAdapter;
+  private final PeerConnectorFactory peerConnectorFactory;
   @Getter private final Torrent torrent;
 
-  private TorrentManager(TorrentContext torrentContext, StorageAdapter adapter) {
+  @VisibleForTesting
+  TorrentManager(
+      TorrentContext torrentContext,
+      StorageAdapter adapter,
+      PeerConnectorFactory peerConnectorFactory) {
     this.torrentContext = torrentContext;
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
     this.networkStorageAdapter = adapter;
+    this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
   }
 
-  public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+  public static TorrentManager makeSeeder(
+      TorrentContext torrentContext,
+      StorageAdapter adapter,
+      PeerConnectorFactory peerConnectorFactory) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter, peerConnectorFactory);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
@@ -77,8 +84,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   public static TorrentManager makeDownloader(
-      TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+      TorrentContext torrentContext,
+      StorageAdapter adapter,
+      PeerConnectorFactory peerConnectorFactory) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter, peerConnectorFactory);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
@@ -112,12 +121,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
               () -> {
                 try {
                   PeerConnector connector =
-                      SocketConnector.makeInitialConnection(peer, this, networkStorageAdapter);
+                      peerConnectorFactory.makeInitialConnection(ourPeerId, peer, messageHandler);
                   connector.initiateConnection();
                   addPeer(connector, peer);
                   // TODO: revise
-                  connector.writeMessage(
-                      new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+                  connector.sendMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
                 } catch (IOException e) {
                   e.printStackTrace(System.err);
                   log.error("Error connecting peer {}", peer.getAddress());
@@ -150,8 +158,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         connector.close();
       } else {
         // finish setting up the connection
-        connector.setStorageAdapter(networkStorageAdapter);
-        connector.writeMessage(new BitfieldMessage(buildBitfield()));
+        connector.sendMessage(new BitfieldMessage(buildBitfield()));
         log.info("Added peer {}", peer.getPeerID());
       }
     } catch (Exception exception) {
@@ -201,7 +208,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       }
       // Only write request when not waiting
       if (peerContext.waitingForRequest.compareAndSet(false, true)) {
-        peerConnector.writeMessage(
+        peerConnector.sendMessage(
             PieceActionMessage.makeRequestMessage(
                 pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
       }
@@ -415,4 +422,97 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
     return bitfield;
   }
+
+  @Getter(AccessLevel.PACKAGE)
+  private final MessageHandler messageHandler =
+      new MessageHandler() {
+        @Override
+        public void removePeer(Peer peer) {
+          TorrentManager.this.removePeer(peer);
+        }
+
+        @Override
+        public void handleMessage(PeerMessage message, PeerConnector connector)
+            throws InterruptedException {
+          Peer peer = connector.getPeer();
+
+          switch (message.getMessageType()) {
+            case CHOKE:
+              peer.setPeerChoked(true);
+              break;
+            case UNCHOKE:
+              peer.setPeerChoked(false);
+              break;
+            case INTERESTED:
+              peer.setPeerInterested(true);
+              try {
+                connector.sendMessage(new PayloadlessMessage(PeerMessage.MessageType.UNCHOKE));
+              } catch (IOException e) {
+                throw new InterruptedException(e.getLocalizedMessage());
+              }
+              break;
+            case NOT_INTERESTED:
+              peer.setPeerInterested(false);
+              break;
+            case HAVE:
+              break;
+            case BITFIELD:
+              Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
+              peer.setBitfield(bitfield);
+              for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
+                if (!(bitfield.getBit(i))) {
+                  return;
+                }
+              }
+              if (peers.containsKey(peer)) {
+                seeders.add(peer);
+              }
+              break;
+            case REQUEST:
+              if (!peer.isPeerInterested() || peer.isAmChoked()) break;
+              if (!message.verify(torrent)) {
+                log.error("Invalid Request Messgae");
+                throw new InterruptedException("Invalid Request Messgae, Connection closed");
+              }
+              // Verify if the piece exists
+              int index = ((PieceActionMessage) message).getIndex();
+              int begin = ((PieceActionMessage) message).getBegin();
+              int length = ((PieceActionMessage) message).getLength();
+              FileBlock piece;
+              try {
+                piece = networkStorageAdapter.read(new FileBlockInfo(index, begin, length));
+                // Send the piece
+                connector.sendMessage(
+                    new PieceMessage(
+                        piece.getPieceIndex(), piece.getOffsetWithinPiece(), piece.getData()));
+              } catch (Exceptions.IllegalByteOffsets | IOException blockReadException) {
+                log.error(blockReadException);
+                throw new InterruptedException("Invalid block read, Connection closed");
+              }
+              break;
+            case PIECE:
+              FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
+              if (validateAndReportBlockInProgress(peer, fileBlock)) {
+                try {
+                  log.info(
+                      "Trying to write file block "
+                          + fileBlock.getPieceIndex()
+                          + " "
+                          + fileBlock.getOffsetWithinPiece());
+                  networkStorageAdapter.write(fileBlock);
+                  reportBlockCompletion(fileBlock);
+                } catch (Exceptions.IllegalByteOffsets | IOException blockWriteException) {
+                  log.error(blockWriteException);
+                  reportBlockFailed(fileBlock);
+                }
+              }
+              break;
+            case CANCEL:
+              break;
+            default:
+              throw new IllegalStateException("Unhandled message type");
+          }
+          // Be careful when writing anything here due to Bitfield special case!
+        }
+      };
 }

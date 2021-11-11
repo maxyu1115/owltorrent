@@ -141,7 +141,7 @@ public abstract class PeerMessage {
     }
   }
 
-  static byte[] constructHandShakeMessage(Torrent torrent, TwentyByteId ourPeerID) {
+  public static byte[] constructHandShakeMessage(Torrent torrent, TwentyByteId ourPeerID) {
     ByteBuffer message = ByteBuffer.allocate(HANDSHAKE_BYTE_SIZE);
     message.put((byte) HANDSHAKE_LENGTH_BYTE);
     byte[] pstr = BIT_TORRENT_PROTOCOL.getBytes(StandardCharsets.US_ASCII);

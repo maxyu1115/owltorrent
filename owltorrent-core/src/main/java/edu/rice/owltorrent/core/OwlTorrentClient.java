@@ -8,10 +8,8 @@ import edu.rice.owltorrent.common.entity.TorrentContext;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
-import edu.rice.owltorrent.network.HandShakeListener;
-import edu.rice.owltorrent.network.TorrentManager;
-import edu.rice.owltorrent.network.TorrentRepository;
-import edu.rice.owltorrent.network.TorrentRepositoryImpl;
+import edu.rice.owltorrent.network.*;
+import edu.rice.owltorrent.network.peerconnector.SocketConnectorFactory;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
@@ -38,11 +36,14 @@ public class OwlTorrentClient {
 
   private final TwentyByteId ourPeerId;
 
+  private final PeerConnectorFactory connectorFactory;
+
   public OwlTorrentClient() throws IOException {
     // TODO: generate an actual id
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    this.connectorFactory = SocketConnectorFactory.SINGLETON;
     this.listenerPort = findAvailablePort();
-    handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    handShakeListener = new HandShakeListener(torrentRepository, connectorFactory, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
   }
 
@@ -66,7 +67,8 @@ public class OwlTorrentClient {
           Exceptions.FileCouldNotBeCreatedException, Exceptions.ParsingTorrentFileFailedException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createDownloadingStorageAdapter(torrentContext.getTorrent());
-    TorrentManager manager = TorrentManager.makeDownloader(torrentContext, adapter);
+    TorrentManager manager =
+        TorrentManager.makeDownloader(torrentContext, adapter, connectorFactory);
     torrentRepository.registerTorrentManager(manager);
     manager.startDownloadingAsynchronously();
     return manager::getProgressPercent;
@@ -77,7 +79,7 @@ public class OwlTorrentClient {
           Exceptions.FileNotMatchingTorrentException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
-    TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter);
+    TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter, connectorFactory);
     torrentRepository.registerTorrentManager(manager);
     try {
       listenerThread.join();

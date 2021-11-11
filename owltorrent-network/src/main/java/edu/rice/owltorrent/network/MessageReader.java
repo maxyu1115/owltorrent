@@ -1,11 +1,11 @@
 package edu.rice.owltorrent.network;
 
-import lombok.extern.log4j.Log4j2;
-
+import edu.rice.owltorrent.common.entity.Peer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Arrays;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Message Reader for reading from Peer's inputChannels.
@@ -13,11 +13,11 @@ import java.util.Arrays;
  * @author Max Yu
  */
 @Log4j2(topic = "network")
-public class MessageReader {
+public final class MessageReader {
   // 2 MB
   private static final int MAX_MESSAGE_SIZE = 2 * 1024 * 1024;
 
-  public PeerMessage readMessage(ReadableByteChannel inputChannel) throws IOException {
+  public static PeerMessage readMessage(ReadableByteChannel inputChannel) throws IOException {
     ByteBuffer buffer = ByteBuffer.allocate(PeerMessage.LENGTH_FIELD_SIZE);
     buffer.limit(PeerMessage.LENGTH_FIELD_SIZE);
     int readBytes = inputChannel.read(buffer);
@@ -31,9 +31,9 @@ public class MessageReader {
 
     if (pstrLength > MAX_MESSAGE_SIZE) {
       log.warn(
-              "Proposed limit of {} is larger than max message size {}",
-              PeerMessage.LENGTH_FIELD_SIZE + pstrLength,
-              MAX_MESSAGE_SIZE);
+          "Proposed limit of {} is larger than max message size {}",
+          PeerMessage.LENGTH_FIELD_SIZE + pstrLength,
+          MAX_MESSAGE_SIZE);
       log.warn("current bytes in buffer is {}", Arrays.toString(buffer.array()));
       return null;
     }
@@ -59,5 +59,19 @@ public class MessageReader {
     log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();
     return PeerMessage.parse(buffer);
+  }
+
+  public static boolean handShake(ReadableByteChannel inputChannel, Peer peer) throws IOException {
+    ByteBuffer buffer = ByteBuffer.allocate(PeerMessage.HANDSHAKE_BYTE_SIZE);
+    int readBytes = inputChannel.read(buffer);
+    if (readBytes < 0) {
+      log.debug("connection is closed by other peer");
+      return false;
+    }
+    if (readBytes != PeerMessage.HANDSHAKE_BYTE_SIZE
+        || !PeerMessage.confirmHandShake(buffer.array(), peer)) {
+      return false;
+    }
+    return true;
   }
 }
