@@ -171,17 +171,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
     seeders.remove(peer);
   }
 
-  /**
-   * Declares that the specified peer is a seeder
-   *
-   * @param peer already connected peer
-   */
-  public void declareSeeder(Peer peer) {
-    if (peers.containsKey(peer)) {
-      seeders.add(peer);
-    }
-  }
-
   @Override
   public void close() throws Exception {
     // Announce that we're dropping off
@@ -202,10 +191,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
     // TODO: fix int casting.
     try {
-      int actualBlockSize = pieceStatus.blockLength;
-      if (isLastBlock(pieceStatus, blockIndex)) {
-        actualBlockSize = ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
-      }
+      int actualBlockSize = getBlockLength(pieceStatus, blockIndex);
       // Only write request when not waiting
       if (peerContext.waitingForRequest.compareAndSet(false, true)) {
         peerConnector.sendMessage(
@@ -304,22 +290,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
     PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex());
     int blockIndex = blockInfo.getOffsetWithinPiece() / status.blockLength;
 
-    if (isLastBlock(status, blockIndex)) {
-      if (blockInfo.getLength() != ((int) torrent.getLastPieceLength()) % status.blockLength) {
-        log.warn(
-            "Block length invalid for final piece: expected [{}], found [{}]",
-            ((int) torrent.getLastPieceLength()) % status.blockLength,
-            blockInfo.getLength());
-        return false;
-      }
-    } else {
-      if (status.blockLength != blockInfo.getLength()) {
-        log.warn(
-            "Block length invalid: expected [{}], found [{}]",
-            status.blockLength,
-            blockInfo.getLength());
-        return false;
-      }
+    if (getBlockLength(status, blockIndex) != blockInfo.getLength()) {
+      log.warn(
+          "Block length invalid: expected [{}], found [{}]",
+          getBlockLength(status, blockIndex),
+          blockInfo.getLength());
+      return false;
     }
 
     return status.status.get(blockIndex).compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
@@ -379,6 +355,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
     // write could
     // have messed it up
     status.status.get(blockInfo.getOffsetWithinPiece() / status.blockLength).set(BLOCK_NOT_STARTED);
+  }
+
+  private int getBlockLength(PieceStatus pieceStatus, int blockIndex) {
+    if (isLastBlock(pieceStatus, blockIndex)
+        && ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength != 0) {
+      return ((int) torrent.getLastPieceLength()) % pieceStatus.blockLength;
+    } else {
+      return pieceStatus.blockLength;
+    }
   }
 
   private boolean isLastBlock(PieceStatus pieceStatus, int blockIndex) {
