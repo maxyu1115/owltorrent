@@ -1,19 +1,20 @@
-package edu.rice.owltorrent.network;
+package edu.rice.owltorrent.network.peerconnector;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
+import edu.rice.owltorrent.network.HandShakeListener;
+import edu.rice.owltorrent.network.MessageHandler;
+import edu.rice.owltorrent.network.TorrentManager;
+import edu.rice.owltorrent.network.TorrentRepository;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Optional;
-
-import edu.rice.owltorrent.network.peerconnector.SocketConnector;
 import org.junit.Before;
 import org.mockito.Mock;
 
@@ -31,7 +32,7 @@ public class SocketConnectorLocalHostTest {
 
   private final TwentyByteId infoHash = TwentyByteId.fromString("12345678901234567890");
 
-  @Mock private StorageAdapter storageAdapter;
+  @Mock private MessageHandler messageHandler;
 
   private HandShakeListener listener;
 
@@ -41,7 +42,7 @@ public class SocketConnectorLocalHostTest {
     when(torrentRepository.retrieveTorrent(eq(infoHash))).thenReturn(Optional.of(torrentManager));
     when(torrent.getInfoHash()).thenReturn(infoHash);
 
-    listener = new HandShakeListener(torrentRepository, 8080);
+    listener = new HandShakeListener(torrentRepository, SocketConnectorFactory.SINGLETON, 8080);
   }
 
   // @Test(expected = Test.None.class /* no exception expected */)
@@ -55,7 +56,7 @@ public class SocketConnectorLocalHostTest {
 
       Peer host = new Peer(peerId, new InetSocketAddress("127.0.0.1", 8080), torrent);
       SocketConnector connector =
-          SocketConnector.makeInitialConnection(host, torrentManager, storageAdapter);
+          SocketConnector.makeInitialConnection(peerId, host, messageHandler);
       connector.initiateConnection();
 
     } catch (Exception e) {

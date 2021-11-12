@@ -423,7 +423,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return bitfield;
   }
 
-  @Getter(AccessLevel.PACKAGE)
+  @Getter(AccessLevel.PUBLIC)
   private final MessageHandler messageHandler =
       new MessageHandler() {
         @Override
