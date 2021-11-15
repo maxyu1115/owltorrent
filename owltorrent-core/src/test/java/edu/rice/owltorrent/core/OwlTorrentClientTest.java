@@ -1,5 +1,7 @@
 package edu.rice.owltorrent.core;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -15,6 +17,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import lombok.extern.log4j.Log4j2;
 import org.junit.Assert;
@@ -25,27 +30,28 @@ public class OwlTorrentClientTest {
   @Test
   public void localSeedingAndDownloadingTest() throws Exception {
 
-    File existing = new File("OwlTorrentRiggedDemoPresentation.pdf");
-    existing.delete();
+    // These should be stored in the shared-resources folder.
+    String pdfName = "OwlTorrentRiggedDemoPresentation.pdf";
+    String torrentName = "OwlTorrentRiggedDemoPresentation.torrent";
 
-    URI pdfUrl =
-        OwlTorrentClientTest.class
-            .getClassLoader()
-            .getResource("OwlTorrentRiggedDemoPresentation.pdf")
-            .toURI();
+    final int seederPort = 57601;
+    final int downloaderPort = 57600;
+
+    URI pdfUrl = OwlTorrentClientTest.class.getClassLoader().getResource(pdfName).toURI();
     String pdfPath = pdfUrl.getPath();
-    URI torrentUrl =
-        OwlTorrentClientTest.class
-            .getClassLoader()
-            .getResource("OwlTorrentRiggedDemoPresentation.torrent")
-            .toURI();
+    URI torrentUrl = OwlTorrentClientTest.class.getClassLoader().getResource(torrentName).toURI();
     String torrentPath = torrentUrl.getPath();
+
+    // Need to delete local version of pdf in case this test was already run, avoids a
+    // FileAlreadyExists exception.
+    File existing = new File(pdfName);
+    existing.delete();
 
     TwentyByteId seederId = OwlTorrentClient.generateRandomPeerId();
     PeerLocator mockedSeederLocator = mock(PeerLocator.class);
     when(mockedSeederLocator.locatePeers(any(), anyLong(), anyLong(), anyLong(), any()))
         .thenReturn(List.of());
-    OwlTorrentClient seeder = new OwlTorrentClient(57601, mockedSeederLocator, seederId);
+    OwlTorrentClient seeder = new OwlTorrentClient(seederPort, mockedSeederLocator, seederId);
     seeder.startSeeding();
     new Thread(
             () -> {
@@ -58,29 +64,37 @@ public class OwlTorrentClientTest {
         .start();
 
     // Make sure that this seeder actually starts seeding, technically should do some sort of
-    // waiting but this sleep
-    // is fine for now.
-    Thread.sleep(100);
+    // waiting but this sleep is fine for now.
+    Thread.sleep(1000);
 
     TwentyByteId downloaderId = OwlTorrentClient.generateRandomPeerId();
     PeerLocator mockedDownloaderLocator = mock(PeerLocator.class);
     Torrent torrent = TorrentParser.parse(new File(torrentPath));
     when(mockedDownloaderLocator.locatePeers(any(), anyLong(), anyLong(), anyLong(), any()))
         .thenReturn(
-            List.of(new Peer(seederId, new InetSocketAddress("localhost", 57601), torrent)));
+            List.of(new Peer(seederId, new InetSocketAddress("localhost", seederPort), torrent)));
     OwlTorrentClient downloader =
-        new OwlTorrentClient(57600, mockedDownloaderLocator, downloaderId);
+        new OwlTorrentClient(downloaderPort, mockedDownloaderLocator, downloaderId);
     OwlTorrentClient.ProgressMeter meter = downloader.downloadFile(torrentPath);
 
-    while (meter.getPercentDone() < 1.0) {
-      Thread.sleep(100);
+    // Again this is a bit of a hack, if we don't download the file within a second we throw an
+    // error
+    long startTime = System.currentTimeMillis();
+    while (System.currentTimeMillis() - startTime < 1000 && meter.ratioCompleted() < 1.0) {
+      Thread.sleep(10);
     }
+    assertEquals(1.0, meter.ratioCompleted(), 0);
+
+    // Check files are equal
+    byte[] f1 = Files.readAllBytes(Path.of(pdfName));
+    byte[] f2 = Files.readAllBytes(Paths.get(pdfUrl));
+    assertArrayEquals(f1, f2);
   }
 
   @Test
   public void testFindListenerPort() throws IOException {
     int firstPort = OwlTorrentClient.findAvailablePort();
-    Assert.assertEquals(
+    assertEquals(
         "Test the function doesn't use any additional ports",
         firstPort,
         OwlTorrentClient.findAvailablePort());

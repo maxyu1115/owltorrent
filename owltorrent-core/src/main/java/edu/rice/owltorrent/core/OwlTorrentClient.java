@@ -21,7 +21,7 @@ import lombok.extern.log4j.Log4j2;
 public class OwlTorrentClient {
 
   public interface ProgressMeter {
-    float getPercentDone();
+    float ratioCompleted();
   }
 
   private static final String OWL_TORRENT_ID_PREFIX = "OwlTorrent";
