@@ -51,6 +51,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final int totalPieces;
 
   private final TorrentContext torrentContext;
+  private final PeerLocator locator;
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -58,16 +59,19 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final StorageAdapter networkStorageAdapter;
   @Getter private final Torrent torrent;
 
-  private TorrentManager(TorrentContext torrentContext, StorageAdapter adapter) {
+  private TorrentManager(
+      TorrentContext torrentContext, StorageAdapter adapter, PeerLocator locator) {
     this.torrentContext = torrentContext;
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
+    this.locator = locator;
     this.networkStorageAdapter = adapter;
     this.totalPieces = torrent.getPieceHashes().size();
   }
 
-  public static TorrentManager makeSeeder(TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+  public static TorrentManager makeSeeder(
+      TorrentContext torrentContext, StorageAdapter adapter, PeerLocator locator) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter, locator);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
@@ -77,8 +81,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   public static TorrentManager makeDownloader(
-      TorrentContext torrentContext, StorageAdapter adapter) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter);
+      TorrentContext torrentContext, StorageAdapter adapter, PeerLocator locator) {
+    TorrentManager manager = new TorrentManager(torrentContext, adapter, locator);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
@@ -98,7 +102,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @return list of Peers we retrieved from Tracker
    */
   private List<Peer> announce(long downloaded, long left, long uploaded, Event event) {
-    PeerLocator locator = new MultipleTrackerConnector();
     return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
