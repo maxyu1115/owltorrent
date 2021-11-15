@@ -44,8 +44,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
   private static final int BLOCK_DONE = 2;
+  private static final int NOT_ADVERTISED_LIMIT = 5;
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private Set<Integer> notAdvertisedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
   private final Queue<Integer> notStartedPieces = new ConcurrentLinkedQueue<>();
 
@@ -263,6 +265,25 @@ public class TorrentManager implements Runnable, AutoCloseable {
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
+      if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
+        // Advertise with Have message for more bandwidth
+        for (Integer pieceIndex : notAdvertisedPieces) {
+          for (Peer leecher : leechers) {
+            if (peers.containsKey(leecher)
+                && leecher.isPeerChoked()
+                && leecher.isPeerInterested()) {
+              PeerConnectionContext conn = peers.get(leecher);
+              try {
+                conn.peerConnector.writeMessage(new HaveMessage(pieceIndex));
+              } catch (IOException e) {
+                log.error(e);
+              }
+            }
+          }
+        }
+        notAdvertisedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
+      }
+
       try {
         Thread.sleep(10);
       } catch (InterruptedException e) {
@@ -376,17 +397,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(pieceIndex, status);
       } else {
         completedPieces.add(pieceIndex);
-        // Advertise with Have message for more bandwidth
-        for (Peer leecher : leechers) {
-          if (peers.containsKey(leecher) && !leecher.isAmChoked() && leecher.isPeerInterested()) {
-            PeerConnectionContext conn = peers.get(leecher);
-            try {
-              conn.peerConnector.writeMessage(new HaveMessage(pieceIndex));
-            } catch (IOException e) {
-              log.error(e);
-            }
-          }
-        }
+        notAdvertisedPieces.add(pieceIndex);
       }
     }
   }
