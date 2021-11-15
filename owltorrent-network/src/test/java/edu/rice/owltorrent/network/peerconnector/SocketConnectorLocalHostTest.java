@@ -42,7 +42,7 @@ public class SocketConnectorLocalHostTest {
     when(torrentRepository.retrieveTorrent(eq(infoHash))).thenReturn(Optional.of(torrentManager));
     when(torrent.getInfoHash()).thenReturn(infoHash);
 
-    listener = new HandShakeListener(torrentRepository, SocketConnectorFactory.SINGLETON, 8080);
+    // listener = new HandShakeListener(torrentRepository, SocketConnectorFactory.SINGLETON, 8080);
   }
 
   // @Test(expected = Test.None.class /* no exception expected */)

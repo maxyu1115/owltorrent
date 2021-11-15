@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.network;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.rice.owltorrent.common.adapters.TaskExecutor.Task;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.*;
@@ -14,7 +15,7 @@ import lombok.extern.log4j.Log4j2;
 
 /** @author Lorraine Lyu */
 @Log4j2(topic = "network")
-public class ClientHandler implements Runnable, AutoCloseable {
+public class ClientHandler implements Task, AutoCloseable {
   private final TorrentRepository torrentRepository;
   private final PeerConnectorFactory peerConnectorFactory;
   private final SocketChannel socketChannel;
