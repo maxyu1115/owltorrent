@@ -12,6 +12,7 @@ import edu.rice.owltorrent.network.*;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.log4j.Log4j2;
@@ -29,8 +30,9 @@ public class OwlTorrentClient {
   private final HandShakeListener handShakeListener;
   private final Thread listenerThread;
   private final PeerLocator locator;
+  private static final int DEFAULT_LISTENER_PORT = 57600;
+  private static final int MAX_LISTENER_PORT = 65535;
   private final int listenerPort;
-
   private final TwentyByteId ourPeerId;
 
   public static TwentyByteId generateRandomPeerId() {
@@ -40,9 +42,9 @@ public class OwlTorrentClient {
     return TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + random_uuid);
   }
 
-  public OwlTorrentClient() {
-    listenerPort = 57600;
-    ourPeerId = generateRandomPeerId();
+  OwlTorrentClient() throws IOException {
+    ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    this.listenerPort = findAvailablePort();
     handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
     locator = new MultipleTrackerConnector();
@@ -54,6 +56,17 @@ public class OwlTorrentClient {
     handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
     this.locator = locator;
+  }
+
+  static int findAvailablePort() throws IOException {
+    for (int i = DEFAULT_LISTENER_PORT; i < MAX_LISTENER_PORT; i++) {
+      try (ServerSocket ignored = new ServerSocket(i)) {
+        return i;
+      } catch (IOException ignored) {
+      }
+    }
+    log.error("No available ports found");
+    throw new IOException("No available ports found");
   }
 
   void startSeeding() {

@@ -1,8 +1,9 @@
 package edu.rice.owltorrent.network;
 
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
@@ -15,12 +16,14 @@ public class HandShakeListener implements Runnable {
 
   @Override
   public void run() {
-    try (ServerSocket serverSocket = new ServerSocket(port)) {
+    try (ServerSocketChannel serverSocket = ServerSocketChannel.open()) {
+      serverSocket.bind(new InetSocketAddress(port));
+      serverSocket.configureBlocking(true);
       while (true) {
         try {
-          Socket clientSocket = serverSocket.accept();
+          SocketChannel clientSocketChannel = serverSocket.accept();
           log.info("Incoming network connection");
-          ClientHandler handler = new ClientHandler(torrentRepository, clientSocket);
+          ClientHandler handler = new ClientHandler(torrentRepository, clientSocketChannel);
           new Thread(handler).start();
         } catch (IOException ioException) {
           ioException.printStackTrace();

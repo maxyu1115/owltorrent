@@ -1,6 +1,7 @@
 package edu.rice.owltorrent.core;
 
 import edu.rice.owltorrent.common.util.Exceptions;
+import edu.rice.owltorrent.common.util.ProgressBar;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import lombok.extern.log4j.Log4j2;
@@ -59,13 +60,18 @@ public class ClientCLI implements Callable<Integer> {
       return 1;
     }
 
+    ProgressBar pb = new ProgressBar(10, "Downloading");
     while (meter.getPercentDone() < 1) {
-      System.out.printf("Download is %s%% done!\n", meter.getPercentDone());
+      System.out.print(pb.getProgressBar(meter.getPercentDone() * 100));
       try {
-        Thread.sleep(1000);
+        Thread.sleep(100);
       } catch (InterruptedException e) {
         // NOOP
       }
+    }
+
+    if (meter.getPercentDone() == 1) {
+      System.out.print(pb.getProgressBar(100));
     }
 
     return 0;

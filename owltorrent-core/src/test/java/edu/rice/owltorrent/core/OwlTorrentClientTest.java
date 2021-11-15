@@ -11,10 +11,13 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.PeerLocator;
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.util.List;
 import lombok.extern.log4j.Log4j2;
+import org.junit.Assert;
 import org.junit.Test;
 
 @Log4j2(topic = "general")
@@ -72,5 +75,20 @@ public class OwlTorrentClientTest {
     while (meter.getPercentDone() < 1.0) {
       Thread.sleep(100);
     }
+  }
+
+  @Test
+  public void testFindListenerPort() throws IOException {
+    int firstPort = OwlTorrentClient.findAvailablePort();
+    Assert.assertEquals(
+        "Test the function doesn't use any additional ports",
+        firstPort,
+        OwlTorrentClient.findAvailablePort());
+
+    ServerSocket socket = new ServerSocket(firstPort);
+    Assert.assertTrue(
+        "Test after occupying the first port, the method gives us a new port",
+        firstPort < OwlTorrentClient.findAvailablePort());
+    socket.close();
   }
 }

@@ -148,16 +148,16 @@ public class UdpTrackerConnector {
       @NonNull DatagramPacket requestPacket,
       @NonNull DatagramPacket responsePacket)
       throws IOException {
-    System.out.println("trying to connect to socket...");
+    log.info("trying to connect to socket...");
 
     // Try connecting up to 8 times
     for (int i = 0; i < 8; i++) {
       datagramSocket.setSoTimeout((int) (15000 * Math.pow(2, i))); // Timeout is 15 * 2 ^ n seconds.
-      System.out.println(i + "th attempt trying to connect to tracker.");
+      log.info(i + "th attempt trying to connect to tracker.");
 
       try {
         datagramSocket.send(requestPacket);
-        System.out.println("successfully sent");
+        log.info("successfully sent");
         datagramSocket.receive(responsePacket);
         break;
       } catch (SocketTimeoutException s) {

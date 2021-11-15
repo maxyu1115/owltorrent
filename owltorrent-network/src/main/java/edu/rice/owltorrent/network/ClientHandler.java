@@ -5,7 +5,8 @@ import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Optional;
@@ -15,28 +16,23 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public class ClientHandler implements Runnable, AutoCloseable {
   private final TorrentRepository torrentRepository;
-  private final Socket socket;
-  private DataOutputStream out;
-  private DataInputStream in;
+  private final SocketChannel socketChannel;
 
-  ClientHandler(TorrentRepository torrentRepository, Socket socket) {
+  ClientHandler(TorrentRepository torrentRepository, SocketChannel socketChannel) {
     this.torrentRepository = torrentRepository;
-    this.socket = socket;
-    log.info("connected to peer");
+    this.socketChannel = socketChannel;
+    log.debug("connected to peer");
   }
 
   public void run() {
     try {
-      out = new DataOutputStream(socket.getOutputStream());
 
-      // Gets the inputstream of client
-      in = new DataInputStream(socket.getInputStream());
-
-      byte[] handShakeBuffer = new byte[68];
-      if (in.read(handShakeBuffer) != 68) {
+      ByteBuffer handShakeBuffer = ByteBuffer.allocate(PeerMessage.HANDSHAKE_BYTE_SIZE);
+      if (socketChannel.read(handShakeBuffer) != PeerMessage.HANDSHAKE_BYTE_SIZE) {
         log.warn("Received invalid handshake.");
         return;
       }
+      handShakeBuffer.rewind();
       Optional<TorrentManager> torrentManager = verifyHandShake(handShakeBuffer);
       if (torrentManager.isEmpty()) {
         return;
@@ -44,7 +40,8 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
       Peer peer = getPeer(handShakeBuffer, torrentManager.get());
       SocketConnector connector =
-          SocketConnector.makeRespondingConnection(peer, torrentManager.get(), this.socket);
+          SocketConnector.makeRespondingConnection(
+              peer, torrentManager.get(), this.socketChannel.socket());
       connector.respondToConnection();
       torrentManager.get().addPeer(connector, connector.peer);
     } catch (IOException e) {
@@ -53,15 +50,22 @@ public class ClientHandler implements Runnable, AutoCloseable {
   }
 
   @VisibleForTesting
-  Optional<TorrentManager> verifyHandShake(byte[] handShake) {
-    log.info("Received Handshake: {}", Arrays.toString(handShake));
-    if (handShake[0] != 19) return Optional.empty();
+  Optional<TorrentManager> verifyHandShake(ByteBuffer handShake) {
+    log.info("Received Handshake: {}", Arrays.toString(handShake.array()));
+    if (handShake.get() != 19) return Optional.empty();
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
-    for (int i = 1; i < 20; i++) if (title[i - 1] != handShake[i]) return Optional.empty();
+    byte[] protocol = new byte[PeerMessage.HANDSHAKE_LENGTH_BYTE];
+    handShake.get(protocol);
+    if (!Arrays.equals(title, protocol)) {
+      return Optional.empty();
+    }
+
+    byte[] extension = new byte[8];
+    handShake.get(extension);
 
     byte[] infoHash = new byte[20];
-    System.arraycopy(handShake, 28, infoHash, 0, 20);
+    handShake.get(infoHash);
     Optional<TorrentManager> torrentManager =
         torrentRepository.retrieveTorrent(new TwentyByteId(infoHash));
     if (torrentManager.isEmpty()) {
@@ -72,13 +76,14 @@ public class ClientHandler implements Runnable, AutoCloseable {
     return torrentManager;
   }
 
-  private Peer getPeer(byte[] handShake, TorrentManager torrentManager) {
+  private Peer getPeer(ByteBuffer handShake, TorrentManager torrentManager) throws IOException {
     byte[] peerId = new byte[20];
-    System.arraycopy(handShake, 48, peerId, 0, 20);
+    handShake.get(peerId);
     Peer peer =
         new Peer(
             new TwentyByteId(peerId),
-            new InetSocketAddress(socket.getInetAddress(), socket.getPort()),
+            new InetSocketAddress(
+                socketChannel.socket().getInetAddress(), socketChannel.socket().getPort()),
             torrentManager.getTorrent());
 
     return peer;
@@ -87,13 +92,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
   @Override
   public void close() throws Exception {
     try {
-      if (out != null) {
-        out.close();
-      }
-      if (in != null) {
-        in.close();
-        socket.close();
-      }
+      socketChannel.close();
     } catch (IOException e) {
       e.printStackTrace();
     }
