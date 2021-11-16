@@ -10,7 +10,7 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.*;
-import edu.rice.owltorrent.network.peerconnector.SocketConnectorFactory;
+import edu.rice.owltorrent.network.socketconnector.SocketConnectorFactory;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
@@ -51,8 +51,8 @@ public class OwlTorrentClient {
   OwlTorrentClient() throws IOException {
 
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
-    this.connectorFactory = SocketConnectorFactory.SINGLETON;
     threadPoolManager = new ThreadPoolManager();
+    this.connectorFactory = new SocketConnectorFactory(threadPoolManager);
     this.listenerPort = findAvailablePort();
     handShakeListener =
         new HandShakeListener(threadPoolManager, torrentRepository, connectorFactory, listenerPort);
