@@ -1,10 +1,11 @@
-package edu.rice.owltorrent.network;
+package edu.rice.owltorrent.network.peerconnector;
 
-import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import edu.rice.owltorrent.network.messagereader.SingleThreadBlockingMessageReader;
-import java.io.DataInputStream;
+import edu.rice.owltorrent.network.MessageHandler;
+import edu.rice.owltorrent.network.MessageReader;
+import edu.rice.owltorrent.network.PeerConnector;
+import edu.rice.owltorrent.network.PeerMessage;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -18,7 +19,7 @@ import lombok.extern.log4j.Log4j2;
  * @author Lorraine Lyu, Max Yu
  */
 @Log4j2(topic = "network")
-public class SocketConnector extends PeerConnector {
+class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
 
   private boolean initiated = false;
@@ -26,20 +27,18 @@ public class SocketConnector extends PeerConnector {
   private Thread listenerThread;
 
   private DataOutputStream out;
-  private DataInputStream in;
+  private ReadableByteChannel in;
 
   private final Runnable listenForInput =
       new Runnable() {
         @Override
         public void run() {
-          ReadableByteChannel channel = Channels.newChannel(in);
           while (true) {
             try {
-              handleMessage(channel);
+              handleMessage(in);
             } catch (InterruptedException e) {
               log.info(e);
 
-              manager.removePeer(peer);
               try {
                 close();
               } catch (Exception exception) {
@@ -52,61 +51,37 @@ public class SocketConnector extends PeerConnector {
       };
 
   private SocketConnector(
-      TwentyByteId ourPeerId,
-      Peer peer,
-      TorrentManager manager,
-      StorageAdapter storageAdapter,
-      MessageReader messageReader,
-      Socket peerSocket) {
-    super(ourPeerId, peer, manager, messageReader);
-    this.setStorageAdapter(storageAdapter);
-    this.peerSocket = peerSocket;
-  }
-
-  /** Called when storageAdapter is unknown to the caller. */
-  private SocketConnector(
-      TwentyByteId ourPeerId,
-      Peer peer,
-      TorrentManager manager,
-      MessageReader messageReader,
-      Socket peerSocket) {
-    super(ourPeerId, peer, manager, messageReader);
+      TwentyByteId ourPeerId, Peer peer, MessageHandler handler, Socket peerSocket) {
+    super(ourPeerId, peer, handler);
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
-      Peer peer, TorrentManager manager, StorageAdapter storageAdapter) throws IOException {
+      TwentyByteId ourPeerId, Peer peer, MessageHandler handler) throws IOException {
     return new SocketConnector(
-        manager.getOurPeerId(),
+        ourPeerId,
         peer,
-        manager,
-        storageAdapter,
-        new SingleThreadBlockingMessageReader(),
+        handler,
         new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
-  public static SocketConnector makeRespondingConnection(
-      Peer peer, TorrentManager manager, Socket peerSocket) {
-    return new SocketConnector(
-        manager.getOurPeerId(), peer, manager, new SingleThreadBlockingMessageReader(), peerSocket);
+  static SocketConnector makeRespondingConnection(
+      TwentyByteId ourPeerId, Peer peer, MessageHandler handler, Socket peerSocket) {
+    return new SocketConnector(ourPeerId, peer, handler, peerSocket);
   }
 
   @Override
-  protected void initiateConnection() throws IOException {
+  public void initiateConnection() throws IOException {
     if (initiated) {
       return;
     }
-    this.in = new DataInputStream(peerSocket.getInputStream());
+    this.in = Channels.newChannel(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
 
     // read and confirm handshake from peer
-    byte[] incomingHandshakeBuffer = new byte[PeerMessage.HANDSHAKE_BYTE_SIZE];
-    int readByteLength = in.read(incomingHandshakeBuffer);
-    log.info("Read bytes: " + readByteLength);
-    if (readByteLength != PeerMessage.HANDSHAKE_BYTE_SIZE
-        || !PeerMessage.confirmHandShake(incomingHandshakeBuffer, this.peer)) {
+    if (!MessageReader.handShake(in, peer)) {
       throw new IOException(
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
@@ -117,11 +92,11 @@ public class SocketConnector extends PeerConnector {
   }
 
   @Override
-  protected void respondToConnection() throws IOException {
+  public void respondToConnection() throws IOException {
     if (initiated) {
       return;
     }
-    this.in = new DataInputStream(peerSocket.getInputStream());
+    this.in = Channels.newChannel(peerSocket.getInputStream());
     this.out = new DataOutputStream(peerSocket.getOutputStream());
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
@@ -132,7 +107,7 @@ public class SocketConnector extends PeerConnector {
   }
 
   @Override
-  public void writeMessage(PeerMessage message) throws IOException {
+  public void sendMessage(PeerMessage message) throws IOException {
     log.info("Writing: {}", message);
     out.write(message.toBytes());
   }

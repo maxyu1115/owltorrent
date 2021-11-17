@@ -24,6 +24,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class ClientHandlerTest {
 
+  @Mock private PeerConnectorFactory connectorFactory;
   @Mock private SocketChannel socketChannel;
   @Mock private TorrentManager torrentManager;
 
@@ -37,7 +38,7 @@ public class ClientHandlerTest {
   @Before
   public void init() {
     when(torrentManager.getTorrent()).thenReturn(torrent);
-    clientHandler = new ClientHandler(torrentRepository, socketChannel);
+    clientHandler = new ClientHandler(torrentRepository, connectorFactory, socketChannel);
     torrent.setInfoHash(infoHash);
   }
 
