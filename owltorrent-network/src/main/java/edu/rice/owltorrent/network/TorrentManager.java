@@ -5,10 +5,7 @@ import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
-import edu.rice.owltorrent.network.messages.BitfieldMessage;
-import edu.rice.owltorrent.network.messages.PayloadlessMessage;
-import edu.rice.owltorrent.network.messages.PieceActionMessage;
-import edu.rice.owltorrent.network.messages.PieceMessage;
+import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
@@ -41,8 +38,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private static final int BLOCK_NOT_STARTED = 0;
   private static final int BLOCK_IN_PROGRESS = 1;
   private static final int BLOCK_DONE = 2;
+  private static final int NOT_ADVERTISED_LIMIT = 5;
 
   private final Set<Integer> completedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private Set<Integer> notAdvertisedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Map<Integer, PieceStatus> uncompletedPieces = new ConcurrentHashMap<>();
   private final Queue<Integer> notStartedPieces = new ConcurrentLinkedQueue<>();
 
@@ -52,6 +51,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<Peer> leechers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   private final StorageAdapter networkStorageAdapter;
   private final PeerConnectorFactory peerConnectorFactory;
@@ -168,6 +168,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public void removePeer(Peer peer) {
     peers.remove(peer);
     seeders.remove(peer);
+    leechers.remove(peer);
   }
 
   @Override
@@ -234,6 +235,25 @@ public class TorrentManager implements Runnable, AutoCloseable {
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+      }
+
+      if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
+        // Advertise with Have message for more bandwidth
+        for (Integer pieceIndex : notAdvertisedPieces) {
+          for (Peer leecher : leechers) {
+            if (peers.containsKey(leecher)
+                && leecher.isPeerChoked()
+                && leecher.isPeerInterested()) {
+              PeerConnectionContext conn = peers.get(leecher);
+              try {
+                conn.peerConnector.sendMessage(new HaveMessage(pieceIndex));
+              } catch (IOException e) {
+                log.error(e);
+              }
+            }
+          }
+        }
+        notAdvertisedPieces = Collections.newSetFromMap(new ConcurrentHashMap<>());
       }
 
       try {
@@ -339,6 +359,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(pieceIndex, status);
       } else {
         completedPieces.add(pieceIndex);
+        notAdvertisedPieces.add(pieceIndex);
       }
     }
   }
@@ -445,6 +466,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
               peer.setBitfield(bitfield);
               for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
                 if (!(bitfield.getBit(i))) {
+                  if (peers.containsKey(peer)) {
+                    leechers.add(peer);
+                  }
                   return;
                 }
               }
