@@ -232,9 +232,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
           Set<Peer> leecherSet = indexToLeechers.get(progress.pieceIndex);
           while (leecherSet.iterator().hasNext()) {
             Peer leecher = leecherSet.iterator().next();
-            if (leechers.contains(leecher)
-                && !leecher.isPeerChoked()
-                && leecher.isAmInterested()) {
+            if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
               requestBlockFromPeer(leecher, progress, i);
               leecherFlag = true;
               break;
