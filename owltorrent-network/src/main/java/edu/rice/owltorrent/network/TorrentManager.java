@@ -233,8 +233,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
           while (leecherSet.iterator().hasNext()) {
             Peer leecher = leecherSet.iterator().next();
             if (leechers.contains(leecher)
-                && leecher.isPeerChoked()
-                && leecher.isPeerInterested()) {
+                && !leecher.isPeerChoked()
+                && leecher.isAmInterested()) {
               requestBlockFromPeer(leecher, progress, i);
               leecherFlag = true;
               break;
@@ -254,7 +254,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         Set<Peer> leecherSet = indexToLeechers.get(notStartedIndex);
         while (leecherSet.iterator().hasNext()) {
           Peer leecher = leecherSet.iterator().next();
-          if (leechers.contains(leecher) && leecher.isPeerChoked() && leecher.isPeerInterested()) {
+          if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
             requestBlockFromPeer(leecher, newPieceStatus, 0);
             leecherFlag = true;
             break;
@@ -487,7 +487,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
               peer.setPeerInterested(false);
               break;
             case HAVE:
-              peer.setBit(((HaveMessage) message).getIndex());
+              int idx = ((HaveMessage) message).getIndex();
+              indexToLeechers.get(idx).add(peer);
               break;
             case BITFIELD:
               Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
