@@ -12,6 +12,7 @@ import lombok.extern.log4j.Log4j2;
 @RequiredArgsConstructor
 public class HandShakeListener implements Runnable {
   private final TorrentRepository torrentRepository;
+  private final PeerConnectorFactory peerConnectorFactory;
   private final int port;
 
   @Override
@@ -23,7 +24,8 @@ public class HandShakeListener implements Runnable {
         try {
           SocketChannel clientSocketChannel = serverSocket.accept();
           log.info("Incoming network connection");
-          ClientHandler handler = new ClientHandler(torrentRepository, clientSocketChannel);
+          ClientHandler handler =
+              new ClientHandler(torrentRepository, peerConnectorFactory, clientSocketChannel);
           new Thread(handler).start();
         } catch (IOException ioException) {
           ioException.printStackTrace();

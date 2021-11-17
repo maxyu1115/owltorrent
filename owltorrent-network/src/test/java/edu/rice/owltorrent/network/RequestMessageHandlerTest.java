@@ -4,9 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
-import edu.rice.owltorrent.common.entity.FileBlock;
-import edu.rice.owltorrent.common.entity.Peer;
-import edu.rice.owltorrent.common.entity.Torrent;
+import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
 import edu.rice.owltorrent.network.messages.PieceMessage;
@@ -14,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -21,15 +20,32 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RequestMessageHandlerTest {
-  @Mock SocketConnector conn;
+  private static final TwentyByteId peerId = TwentyByteId.fromString("owltorrentclientpeer");
 
-  @Mock TorrentManager manager;
+  private TorrentManager manager;
+
+  private MessageHandler messageHandler;
+
+  @Mock PeerConnectorFactory factory;
+
+  @Mock PeerConnector conn;
 
   @Mock StorageAdapter storageAdapter;
 
   @Mock Torrent torrent;
 
   @Mock Peer peer;
+
+  @Before
+  public void init() {
+    manager =
+        new TorrentManager(
+            new TorrentContext(peerId, (short) 8080, torrent),
+            storageAdapter,
+            factory,
+            new MultipleTrackerConnector());
+    messageHandler = manager.getMessageHandler();
+  }
 
   @Test
   public void testHandleCorrect()
@@ -38,21 +54,17 @@ public class RequestMessageHandlerTest {
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
     testList.add(new byte[] {});
-    conn.manager = manager;
-    conn.storageAdapter = storageAdapter;
-    conn.peer = peer;
+    when(conn.getPeer()).thenReturn(peer);
 
     when(torrent.getPieceHashes()).thenReturn(testList);
     when(torrent.getPieceLength()).thenReturn((long) 128);
-    when(conn.manager.getTorrent()).thenReturn(torrent);
-    when(conn.storageAdapter.read(any()))
-        .thenReturn(new FileBlock(1, 20, new byte[] {(byte) 0x20}));
-    when(conn.peer.isPeerInterested()).thenReturn(true);
-    when(conn.peer.isAmChoked()).thenReturn(false);
+    when(storageAdapter.read(any())).thenReturn(new FileBlock(1, 20, new byte[] {(byte) 0x20}));
+    when(peer.isPeerInterested()).thenReturn(true);
+    when(peer.isAmChoked()).thenReturn(false);
 
-    conn.handleMessage(correctMsg);
+    messageHandler.handleMessage(correctMsg, conn);
 
-    verify(conn, times(1)).writeMessage(eq(new PieceMessage(1, 20, new byte[] {(byte) 0x20})));
+    verify(conn, times(1)).sendMessage(eq(new PieceMessage(1, 20, new byte[] {(byte) 0x20})));
   }
 
   @Test
@@ -61,20 +73,17 @@ public class RequestMessageHandlerTest {
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
     testList.add(new byte[] {});
-    conn.manager = manager;
-    conn.storageAdapter = storageAdapter;
-    conn.peer = peer;
+    when(conn.getPeer()).thenReturn(peer);
 
     when(torrent.getPieceHashes()).thenReturn(testList);
     when(torrent.getPieceLength()).thenReturn((long) 25);
-    when(conn.manager.getTorrent()).thenReturn(torrent);
 
-    when(conn.peer.isPeerInterested()).thenReturn(true);
-    when(conn.peer.isAmChoked()).thenReturn(false);
+    when(peer.isPeerInterested()).thenReturn(true);
+    when(peer.isAmChoked()).thenReturn(false);
 
     boolean noError = true;
     try {
-      conn.handleMessage(incorrectMsg);
+      messageHandler.handleMessage(incorrectMsg, conn);
     } catch (InterruptedException e) {
       noError = false;
     }
@@ -91,14 +100,12 @@ public class RequestMessageHandlerTest {
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
     testList.add(new byte[] {});
-    conn.manager = manager;
-    conn.storageAdapter = storageAdapter;
-    conn.peer = peer;
+    when(conn.getPeer()).thenReturn(peer);
 
-    when(conn.peer.isPeerInterested()).thenReturn(true);
-    when(conn.peer.isAmChoked()).thenReturn(true);
+    when(peer.isPeerInterested()).thenReturn(true);
+    when(peer.isAmChoked()).thenReturn(true);
 
-    conn.handleMessage(correctMsg);
+    messageHandler.handleMessage(correctMsg, conn);
 
     verify(correctMsg, times(0)).verify(eq(torrent));
     verify(storageAdapter, times(0)).read(any());
@@ -111,13 +118,11 @@ public class RequestMessageHandlerTest {
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
     testList.add(new byte[] {});
-    conn.manager = manager;
-    conn.storageAdapter = storageAdapter;
-    conn.peer = peer;
+    when(conn.getPeer()).thenReturn(peer);
 
-    when(conn.peer.isPeerInterested()).thenReturn(false);
+    when(peer.isPeerInterested()).thenReturn(false);
 
-    conn.handleMessage(correctMsg);
+    messageHandler.handleMessage(correctMsg, conn);
 
     verify(correctMsg, times(0)).verify(eq(torrent));
     verify(storageAdapter, times(0)).read(any());

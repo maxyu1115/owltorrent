@@ -16,10 +16,15 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 public class ClientHandler implements Runnable, AutoCloseable {
   private final TorrentRepository torrentRepository;
+  private final PeerConnectorFactory peerConnectorFactory;
   private final SocketChannel socketChannel;
 
-  ClientHandler(TorrentRepository torrentRepository, SocketChannel socketChannel) {
+  ClientHandler(
+      TorrentRepository torrentRepository,
+      PeerConnectorFactory peerConnectorFactory,
+      SocketChannel socketChannel) {
     this.torrentRepository = torrentRepository;
+    this.peerConnectorFactory = peerConnectorFactory;
     this.socketChannel = socketChannel;
     log.debug("connected to peer");
   }
@@ -39,9 +44,12 @@ public class ClientHandler implements Runnable, AutoCloseable {
       }
 
       Peer peer = getPeer(handShakeBuffer, torrentManager.get());
-      SocketConnector connector =
-          SocketConnector.makeRespondingConnection(
-              peer, torrentManager.get(), this.socketChannel.socket());
+      PeerConnector connector =
+          peerConnectorFactory.makeRespondingConnection(
+              torrentManager.get().getOurPeerId(),
+              peer,
+              torrentManager.get().getMessageHandler(),
+              this.socketChannel);
       connector.respondToConnection();
       torrentManager.get().addPeer(connector, connector.peer);
     } catch (IOException e) {

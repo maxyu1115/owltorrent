@@ -1,5 +1,6 @@
 package edu.rice.owltorrent.core;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.FileBlock;
 import edu.rice.owltorrent.common.entity.FileBlockInfo;
@@ -9,6 +10,7 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.core.serialization.TorrentParser;
 import edu.rice.owltorrent.network.*;
+import edu.rice.owltorrent.network.peerconnector.SocketConnectorFactory;
 import edu.rice.owltorrent.storage.DiskFile;
 import java.io.File;
 import java.io.IOException;
@@ -42,18 +44,24 @@ public class OwlTorrentClient {
     return TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + random_uuid);
   }
 
+  private final PeerConnectorFactory connectorFactory;
+
   OwlTorrentClient() throws IOException {
+
     ourPeerId = TwentyByteId.fromString(OWL_TORRENT_ID_PREFIX + "1234567890");
+    this.connectorFactory = SocketConnectorFactory.SINGLETON;
     this.listenerPort = findAvailablePort();
-    handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    handShakeListener = new HandShakeListener(torrentRepository, connectorFactory, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
     locator = new MultipleTrackerConnector();
   }
 
+  @VisibleForTesting
   public OwlTorrentClient(int port, PeerLocator locator, TwentyByteId peerId) {
     listenerPort = port;
     ourPeerId = peerId;
-    handShakeListener = new HandShakeListener(torrentRepository, listenerPort);
+    this.connectorFactory = SocketConnectorFactory.SINGLETON;
+    handShakeListener = new HandShakeListener(torrentRepository, connectorFactory, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
     this.locator = locator;
   }
@@ -78,7 +86,8 @@ public class OwlTorrentClient {
           Exceptions.FileCouldNotBeCreatedException, Exceptions.ParsingTorrentFileFailedException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createDownloadingStorageAdapter(torrentContext.getTorrent());
-    TorrentManager manager = TorrentManager.makeDownloader(torrentContext, adapter, locator);
+    TorrentManager manager =
+        TorrentManager.makeDownloader(torrentContext, adapter, connectorFactory, locator);
     torrentRepository.registerTorrentManager(manager);
     manager.startDownloadingAsynchronously();
     return manager::getProgressPercent;
@@ -89,7 +98,8 @@ public class OwlTorrentClient {
           Exceptions.FileNotMatchingTorrentException {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
-    TorrentManager manager = TorrentManager.makeSeeder(torrentContext, adapter, locator);
+    TorrentManager manager =
+        TorrentManager.makeSeeder(torrentContext, adapter, connectorFactory, locator);
     torrentRepository.registerTorrentManager(manager);
     try {
       listenerThread.join();
