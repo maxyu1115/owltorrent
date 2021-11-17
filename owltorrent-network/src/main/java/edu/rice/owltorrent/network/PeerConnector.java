@@ -88,6 +88,7 @@ public abstract class PeerConnector implements AutoCloseable {
         peer.setPeerInterested(false);
         break;
       case HAVE:
+        peer.setBit(((HaveMessage) message).getIndex());
         break;
       case BITFIELD:
         Bitfield bitfield = ((BitfieldMessage) message).getBitfield();

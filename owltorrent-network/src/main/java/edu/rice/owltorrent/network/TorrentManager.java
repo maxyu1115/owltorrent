@@ -277,9 +277,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
       while (!notStartedPieces.isEmpty() && !leecherConnections.isEmpty()) {
         int notStartedIndex = notStartedPieces.remove();
-        PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
-        uncompletedPieces.put(notStartedIndex, newPieceStatus);
-        requestBlockFromPeer(leecherConnections.remove(0), newPieceStatus, 0);
+        Peer leecher = leecherConnections.remove(0);
+        if (leecher.getBitfield().getBit(notStartedIndex)) {
+          PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+          uncompletedPieces.put(notStartedIndex, newPieceStatus);
+          requestBlockFromPeer(leecher, newPieceStatus, 0);
+        }
       }
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
