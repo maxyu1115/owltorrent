@@ -27,6 +27,15 @@ import org.junit.Test;
 
 @Log4j2(topic = "general")
 public class OwlTorrentClientTest {
+
+  private static int findAvailablePort() throws IOException {
+      try (ServerSocket ignored = new ServerSocket(0)) {
+        return ignored.getLocalPort();
+    } catch (IOException ignored) {
+      }
+    throw new IOException("No available ports found");
+  }
+
   @Test
   public void localSeedingAndDownloadingTest() throws Exception {
 
@@ -34,8 +43,7 @@ public class OwlTorrentClientTest {
     String pdfName = "OwlTorrentRiggedDemoPresentation.pdf";
     String torrentName = "OwlTorrentRiggedDemoPresentation.torrent";
 
-    final int seederPort = 57601;
-    final int downloaderPort = 57600;
+    final int seederPort = findAvailablePort();
 
     URI pdfUrl = OwlTorrentClientTest.class.getClassLoader().getResource(pdfName).toURI();
     String pdfPath = pdfUrl.getPath();
@@ -67,6 +75,7 @@ public class OwlTorrentClientTest {
     // waiting but this sleep is fine for now.
     Thread.sleep(1000);
 
+    final int downloaderPort = findAvailablePort();
     TwentyByteId downloaderId = OwlTorrentClient.generateRandomPeerId();
     PeerLocator mockedDownloaderLocator = mock(PeerLocator.class);
     Torrent torrent = TorrentParser.parse(new File(torrentPath));
