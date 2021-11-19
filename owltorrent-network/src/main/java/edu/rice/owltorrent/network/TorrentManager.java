@@ -228,17 +228,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
             continue;
           }
 
-          boolean leecherFlag = false;
-          Set<Peer> leecherSet = indexToLeechers.get(progress.pieceIndex);
-          while (leecherSet.iterator().hasNext()) {
-            Peer leecher = leecherSet.iterator().next();
-            if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
-              requestBlockFromPeer(leecher, progress, i);
-              leecherFlag = true;
-              break;
-            }
-          }
-
+          boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
           if (!leecherFlag) requestBlockFromPeer(connections.remove(0), progress, i);
         }
         if (connections.isEmpty()) break;
@@ -248,17 +238,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
 
-        boolean leecherFlag = false;
-        Set<Peer> leecherSet = indexToLeechers.get(notStartedIndex);
-        while (leecherSet.iterator().hasNext()) {
-          Peer leecher = leecherSet.iterator().next();
-          if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
-            requestBlockFromPeer(leecher, newPieceStatus, 0);
-            leecherFlag = true;
-            break;
-          }
-        }
-
+        boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
         if (!leecherFlag) requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
@@ -287,6 +267,20 @@ public class TorrentManager implements Runnable, AutoCloseable {
         log.error(e);
       }
     }
+  }
+
+  private boolean requestFromLeecher(int index, PieceStatus pieceStatus, int blockIndex) {
+    boolean leecherFlag = false;
+    Set<Peer> leecherSet = indexToLeechers.get(index);
+    while (leecherSet.iterator().hasNext()) {
+      Peer leecher = leecherSet.iterator().next();
+      if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
+        requestBlockFromPeer(leecher, pieceStatus, blockIndex);
+        leecherFlag = true;
+        break;
+      }
+    }
+    return leecherFlag;
   }
 
   private PieceStatus makeNewPieceStatus(int pieceIndex) {
