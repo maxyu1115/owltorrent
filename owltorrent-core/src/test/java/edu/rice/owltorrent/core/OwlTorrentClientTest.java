@@ -29,10 +29,10 @@ import org.junit.Test;
 public class OwlTorrentClientTest {
 
   private static int findAvailablePort() throws IOException {
-      try (ServerSocket ignored = new ServerSocket(0)) {
-        return ignored.getLocalPort();
+    try (ServerSocket ignored = new ServerSocket(0)) {
+      return ignored.getLocalPort();
     } catch (IOException ignored) {
-      }
+    }
     throw new IOException("No available ports found");
   }
 
