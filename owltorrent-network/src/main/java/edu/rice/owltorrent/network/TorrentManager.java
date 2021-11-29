@@ -91,7 +91,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     TorrentManager manager = new TorrentManager(torrentContext, adapter, peerConnectorFactory);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
-      manager.indexToLeechers.put(idx, new HashSet<>());
+      manager.indexToLeechers.put(idx, ConcurrentHashMap.newKeySet());
     }
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
@@ -220,25 +220,29 @@ public class TorrentManager implements Runnable, AutoCloseable {
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
+      AtomicInteger leecherCount = new AtomicInteger(leechers.size());
+
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
-          if (connections.isEmpty()) break;
+          if (connections.isEmpty() && leecherCount.get() <= 0) break;
 
           if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
             continue;
           }
 
           boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
+          if (leecherFlag) leecherCount.getAndDecrement();
           if (!leecherFlag) requestBlockFromPeer(connections.remove(0), progress, i);
         }
-        if (connections.isEmpty()) break;
+        if (connections.isEmpty() && leecherCount.get() <= 0) break;
       }
-      while (!connections.isEmpty() && !notStartedPieces.isEmpty()) {
+      while ((leecherCount.get() > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
         int notStartedIndex = notStartedPieces.remove();
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
 
         boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
+        if (leecherFlag) leecherCount.getAndDecrement();
         if (!leecherFlag) requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
@@ -274,7 +278,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
     Set<Peer> leecherSet = indexToLeechers.get(index);
     while (leecherSet.iterator().hasNext()) {
       Peer leecher = leecherSet.iterator().next();
-      if (leechers.contains(leecher) && !leecher.isPeerChoked() && leecher.isAmInterested()) {
+      if (leechers.contains(leecher)
+          && !leecher.isPeerChoked()
+          && leecher.isAmInterested()
+          && !peers.get(leecher).waitingForRequest.get()) {
         requestBlockFromPeer(leecher, pieceStatus, blockIndex);
         leecherFlag = true;
         break;
