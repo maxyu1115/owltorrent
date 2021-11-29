@@ -61,8 +61,8 @@ public class ClientCLI implements Callable<Integer> {
     }
 
     ProgressBar pb = new ProgressBar(10, "Downloading");
-    while (meter.getPercentDone() < 1) {
-      System.out.print(pb.getProgressBar(meter.getPercentDone() * 100));
+    while (meter.ratioCompleted() < 1) {
+      System.out.print(pb.getProgressBar(meter.ratioCompleted() * 100));
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
@@ -70,7 +70,7 @@ public class ClientCLI implements Callable<Integer> {
       }
     }
 
-    if (meter.getPercentDone() == 1) {
+    if (meter.ratioCompleted() == 1) {
       System.out.print(pb.getProgressBar(100));
     }
 
