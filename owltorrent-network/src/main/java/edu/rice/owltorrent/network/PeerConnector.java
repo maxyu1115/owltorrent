@@ -2,10 +2,11 @@ package edu.rice.owltorrent.network;
 
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
+
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
 
 /**
  * PeerConnector class handling the connections regarding a remote peer.
@@ -17,11 +18,14 @@ public abstract class PeerConnector implements AutoCloseable {
   protected TwentyByteId ourPeerId;
   @Getter protected Peer peer;
   protected MessageHandler messageHandler;
+  protected MeteringSystem meteringSystem;
 
   public PeerConnector(TwentyByteId ourPeerId, Peer peer, MessageHandler messageHandler) {
     this.ourPeerId = ourPeerId;
     this.peer = peer;
     this.messageHandler = messageHandler;
+    // TODO change constructor
+    meteringSystem = new MeteringSystem();
   }
 
   /**
@@ -49,8 +53,10 @@ public abstract class PeerConnector implements AutoCloseable {
       log.error(ioException);
     }
     if (message == null) {
+      meteringSystem.addMetric(peer.getPeerID(), MeteringSystem.Metrics.FAILED_PIECES, 1);
       throw new InterruptedException("Connection closed");
     }
+    meteringSystem.addMetric(peer.getPeerID(), MeteringSystem.Metrics.EFFECTIVE_PIECES, 1);
 
     messageHandler.handleMessage(message, this);
   }

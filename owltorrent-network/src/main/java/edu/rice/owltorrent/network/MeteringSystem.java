@@ -8,8 +8,12 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Metering system to keep track of various peer-related metrics.
+ */
 public class MeteringSystem {
     public enum Metrics {
+        DOWNLOAD_TIME,
         EFFECTIVE_PIECES,
         FAILED_PIECES
     }
@@ -20,18 +24,26 @@ public class MeteringSystem {
         this.metricMap = new ConcurrentHashMap<>();
     }
 
-    public void addMetric(TwentyByteId peerID, Enum<?> metricName, AtomicDouble metricVal) {
+    /**
+     * Add or update metric for a given peer.
+     *
+     * @param peerID peer id
+     * @param metricName metric to track
+     * @param metricVal numerical value of metric
+     */
+    public void addMetric(TwentyByteId peerID, Enum<?> metricName, double metricVal) {
         ConcurrentHashMap<Enum<?>, AtomicDouble> metricsForPeer;
 
         if (metricMap.containsKey(peerID)) {
             metricsForPeer = metricMap.get(peerID);
 
             // Update or create new entry in peer map
-            metricsForPeer.put(metricName, metricsForPeer.getOrDefault(metricName,
-                    new AtomicDouble(0)).getAndAdd(metricVal));
+            double currVal = metricsForPeer.getOrDefault(metricName,
+                    new AtomicDouble(0)).doubleValue();
+            metricsForPeer.put(metricName, new AtomicDouble(currVal + metricVal));
         } else {
             metricsForPeer = new ConcurrentHashMap<>();
-            metricsForPeer.put(metricName, metricVal);
+            metricsForPeer.put(metricName, new AtomicDouble(metricVal));
         }
 
         // Update outer hashmap
@@ -40,11 +52,25 @@ public class MeteringSystem {
         return;
     }
 
+    /**
+     * Get metric for a specified peer.
+     *
+     * @param peerID peer id
+     * @param metricName metric to track
+     * @return metric value for peer
+     */
     public AtomicDouble getMetric(TwentyByteId peerID, Enum<?> metricName) {
         return metricMap.get(peerID).get(metricName);
     }
 
+    /**
+     * Rank peers by specified metric.
+     *
+     * @param metricName metric to rank by
+     * @return ranked peers
+     */
     public PriorityQueue<String[]> rankPeersByMetric(Enum<?> metricName) {
+        // Create priority queue for peers
         PriorityQueue<String[]> rankedPeers = new PriorityQueue<>(new Comparator<String[]>() {
             @Override
             public int compare(String[] peer1, String[] peer2) {
@@ -55,12 +81,12 @@ public class MeteringSystem {
             }
         });
 
-        for (Map.Entry<String, ConcurrentHashMap<Enum<?>, AtomicDouble>> peer : metricMap.entrySet()) {
+        // Populate queue
+        for (Map.Entry<TwentyByteId, ConcurrentHashMap<Enum<?>, AtomicDouble>> peer : metricMap.entrySet()) {
             if (peer.getValue().containsKey(metricName)) {
                 AtomicDouble metricVal = peer.getValue().get(metricName);
                 String[] peerMetricArr = {String.valueOf(metricName), String.valueOf(metricVal)};
 
-                // Add tuple to PQ
                 rankedPeers.add(peerMetricArr);
             }
         }

@@ -6,6 +6,11 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
@@ -14,10 +19,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 
 /**
  * Manager that takes care of everything related to a Torrent. The TorrentManager will manage the
@@ -57,6 +58,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final PeerConnectorFactory peerConnectorFactory;
   @Getter private final Torrent torrent;
 
+  private final MeteringSystem meteringSystem;
+
   @VisibleForTesting
   TorrentManager(
       TorrentContext torrentContext,
@@ -68,6 +71,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.networkStorageAdapter = adapter;
     this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
+    // TODO change constructor
+    meteringSystem = new MeteringSystem();
   }
 
   public static TorrentManager makeSeeder(
@@ -226,7 +231,16 @@ public class TorrentManager implements Runnable, AutoCloseable {
             continue;
           }
 
+          // Start timer
+          double startingTime = System.currentTimeMillis();
+          TwentyByteId connID = connections.get(0).getPeerID();
+
           requestBlockFromPeer(connections.remove(0), progress, i);
+
+          // End timer
+          double endingTime = System.currentTimeMillis();
+          meteringSystem.addMetric(connID, MeteringSystem.Metrics.DOWNLOAD_TIME,
+                  (endingTime - startingTime));
         }
         if (connections.isEmpty()) break;
       }
@@ -236,6 +250,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
         requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
+
+
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
         // Advertise with Have message for more bandwidth
