@@ -98,7 +98,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
         new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
-      manager.indexToLeechers.put(idx, ConcurrentHashMap.newKeySet());
     }
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
@@ -281,6 +280,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private boolean requestFromLeecher(int index, PieceStatus pieceStatus, int blockIndex) {
     boolean leecherFlag = false;
+    if (!indexToLeechers.containsKey(index)) return leecherFlag;
+
     Set<Peer> leecherSet = indexToLeechers.get(index);
     while (leecherSet.iterator().hasNext()) {
       Peer leecher = leecherSet.iterator().next();
@@ -493,6 +494,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
               break;
             case HAVE:
               int idx = ((HaveMessage) message).getIndex();
+              if (!indexToLeechers.containsKey(idx))
+                indexToLeechers.put(idx, ConcurrentHashMap.newKeySet());
               indexToLeechers.get(idx).add(peer);
               break;
             case BITFIELD:
@@ -512,6 +515,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
                 seeders.add(peer);
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
+                  if (!indexToLeechers.containsKey(i))
+                    indexToLeechers.put(i, ConcurrentHashMap.newKeySet());
                   indexToLeechers.get(i).add(peer);
                 }
               }
