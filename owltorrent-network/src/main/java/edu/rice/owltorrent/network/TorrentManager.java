@@ -48,6 +48,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final int totalPieces;
 
   private final TorrentContext torrentContext;
+  private final PeerLocator locator;
   @Getter private final TwentyByteId ourPeerId;
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -61,10 +62,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
   TorrentManager(
       TorrentContext torrentContext,
       StorageAdapter adapter,
-      PeerConnectorFactory peerConnectorFactory) {
+      PeerConnectorFactory peerConnectorFactory,
+      PeerLocator locator) {
     this.torrentContext = torrentContext;
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
+    this.locator = locator;
     this.networkStorageAdapter = adapter;
     this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
@@ -73,8 +76,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public static TorrentManager makeSeeder(
       TorrentContext torrentContext,
       StorageAdapter adapter,
-      PeerConnectorFactory peerConnectorFactory) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter, peerConnectorFactory);
+      PeerConnectorFactory peerConnectorFactory,
+      PeerLocator locator) {
+    TorrentManager manager =
+        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
@@ -86,8 +91,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
   public static TorrentManager makeDownloader(
       TorrentContext torrentContext,
       StorageAdapter adapter,
-      PeerConnectorFactory peerConnectorFactory) {
-    TorrentManager manager = new TorrentManager(torrentContext, adapter, peerConnectorFactory);
+      PeerConnectorFactory peerConnectorFactory,
+      PeerLocator locator) {
+    TorrentManager manager =
+        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
@@ -107,7 +114,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @return list of Peers we retrieved from Tracker
    */
   private List<Peer> announce(long downloaded, long left, long uploaded, Event event) {
-    PeerLocator locator = new MultipleTrackerConnector();
     return locator.locatePeers(torrentContext, downloaded, left, uploaded, event);
   }
 
@@ -150,7 +156,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @param connector a peer connector that already established a connection
    * @param peer the peer we're adding
    */
-  public void addPeer(PeerConnector connector, Peer peer) {
+  void addPeer(PeerConnector connector, Peer peer) {
     try {
       // If peer already added, close the new connection
       if (peers.putIfAbsent(peer, new PeerConnectionContext(connector)) != null) {
@@ -165,7 +171,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
-  public void removePeer(Peer peer) {
+  private void removePeer(Peer peer) {
     peers.remove(peer);
     seeders.remove(peer);
     leechers.remove(peer);
@@ -299,7 +305,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @return false if another thread already started to download that block or the block size is not
    *     expected
    */
-  public boolean validateAndReportBlockInProgress(Peer peer, FileBlockInfo blockInfo) {
+  private boolean validateAndReportBlockInProgress(Peer peer, FileBlockInfo blockInfo) {
     peers.get(peer).waitingForRequest.set(false);
     if (completedPieces.contains(blockInfo.getPieceIndex())) {
       log.debug("block already finished downloading");
@@ -320,7 +326,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     return status.status.get(blockIndex).compareAndSet(BLOCK_NOT_STARTED, BLOCK_IN_PROGRESS);
   }
 
-  public void reportBlockCompletion(FileBlockInfo blockInfo) {
+  private void reportBlockCompletion(FileBlockInfo blockInfo) {
     int pieceIndex = blockInfo.getPieceIndex();
     PieceStatus status = uncompletedPieces.get(pieceIndex);
     if (status == null) {
@@ -364,7 +370,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     }
   }
 
-  public void reportBlockFailed(FileBlockInfo blockInfo) {
+  private void reportBlockFailed(FileBlockInfo blockInfo) {
     PieceStatus status = uncompletedPieces.get(blockInfo.getPieceIndex());
     if (status == null) {
       log.error("Block missing from uncompletedPieces: " + blockInfo);

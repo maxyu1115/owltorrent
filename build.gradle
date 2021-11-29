@@ -61,6 +61,8 @@ allprojects {
         testLogging {
             events "failed"
             exceptionFormat "full"
+            outputs.upToDateWhen {false}
+            showStandardStreams = true
         }
     }
     jacocoTestReport {
