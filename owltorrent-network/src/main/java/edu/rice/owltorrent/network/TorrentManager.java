@@ -225,30 +225,30 @@ public class TorrentManager implements Runnable, AutoCloseable {
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
-      AtomicInteger leecherCount = new AtomicInteger(leechers.size());
+      int leecherCount = leechers.size();
 
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
-          if (connections.isEmpty() && leecherCount.get() <= 0) break;
+          if (connections.isEmpty() && leecherCount <= 0) break;
 
           if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
             continue;
           }
 
           boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
-          if (leecherFlag) leecherCount.getAndDecrement();
-          if (!leecherFlag) requestBlockFromPeer(connections.remove(0), progress, i);
+          if (leecherFlag) leecherCount--;
+          else requestBlockFromPeer(connections.remove(0), progress, i);
         }
-        if (connections.isEmpty() && leecherCount.get() <= 0) break;
+        if (connections.isEmpty() && leecherCount <= 0) break;
       }
-      while ((leecherCount.get() > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
+      while ((leecherCount > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
         int notStartedIndex = notStartedPieces.remove();
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
 
         boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
-        if (leecherFlag) leecherCount.getAndDecrement();
-        if (!leecherFlag) requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+        if (leecherFlag) leecherCount--;
+        else requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
@@ -494,8 +494,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               break;
             case HAVE:
               int idx = ((HaveMessage) message).getIndex();
-              if (!indexToLeechers.containsKey(idx))
-                indexToLeechers.put(idx, ConcurrentHashMap.newKeySet());
+              indexToLeechers.putIfAbsent(idx, ConcurrentHashMap.newKeySet());
               indexToLeechers.get(idx).add(peer);
               break;
             case BITFIELD:
@@ -515,8 +514,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
                 seeders.add(peer);
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
-                  if (!indexToLeechers.containsKey(i))
-                    indexToLeechers.put(i, ConcurrentHashMap.newKeySet());
+                  indexToLeechers.putIfAbsent(i, ConcurrentHashMap.newKeySet());
                   indexToLeechers.get(i).add(peer);
                 }
               }
