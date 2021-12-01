@@ -5,7 +5,11 @@ import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Metering system to keep track of various peer-related metrics. */
+/**
+ * Metering system to keep track of peer, system, and piece-related metrics.
+ *
+ * @author bhaveshshah
+ */
 public class MeteringSystem {
   public enum Metrics {
     // Peer-related metrics
@@ -37,6 +41,7 @@ public class MeteringSystem {
    *
    * @param metricType type of metric (system, peer, piece)
    * @param peerID peer id
+   * @param pieceIndex index of piece
    * @param metricName metric to track
    * @return metric value for peer
    */
@@ -161,11 +166,21 @@ public class MeteringSystem {
   }
 }
 
-// schema:
+// ------ peerMetrics schema ------
 // peer1:
-        // peersFailed: 20
-        // latency: 10.5
+        // PEER_DOWNLOAD_TIME: 10.5
 
 // peer2
-        // peersFailed: 30
-        // latency: 21
+        // PEER_DOWNLOAD_TIME: 21
+
+// ------ systemMetrics schema ------
+// ENTIRE_DOWNLOAD_TIME: 30.5
+// EFFECTIVE_PIECES: 20
+// FAILED_PIECES: 1
+
+// ------ pieceMetrics schema ------
+// index1:
+    // PIECE_DOWNLOAD_TIME: 1.7
+
+// index2
+    // PIECE_DOWNLOAD_TIME: 1.8

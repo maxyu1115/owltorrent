@@ -70,8 +70,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.networkStorageAdapter = adapter;
     this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
-    // TODO change constructor
-    meteringSystem = new MeteringSystem();
+    this.meteringSystem = new MeteringSystem();
   }
 
   public static TorrentManager makeSeeder(
@@ -232,8 +231,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
           if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
             continue;
           }
-
-          TwentyByteId connID = connections.get(0).getPeerID();
 
           requestBlockFromPeer(connections.remove(0), progress, i);
         }
