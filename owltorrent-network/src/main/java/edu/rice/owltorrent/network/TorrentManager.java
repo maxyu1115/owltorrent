@@ -6,11 +6,6 @@ import edu.rice.owltorrent.common.adapters.StorageAdapter;
 import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.*;
@@ -19,6 +14,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Manager that takes care of everything related to a Torrent. The TorrentManager will manage the
@@ -281,9 +280,17 @@ public class TorrentManager implements Runnable, AutoCloseable {
     meteringSystem.addSystemMetric(
         MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME, (endingTime - startingTime));
 
-    log.info("Entire download time: " + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME));
-    log.info("Num of effective pieces: " + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.EFFECTIVE_PIECES));
-    log.info("Num of failed pieces: " + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.FAILED_PIECES));
+    log.info(
+        "Entire download time: "
+            + meteringSystem.getMetric(
+                "system", null, null, MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME));
+    log.info(
+        "Num of effective pieces: "
+            + meteringSystem.getMetric(
+                "system", null, null, MeteringSystem.Metrics.EFFECTIVE_PIECES));
+    log.info(
+        "Num of failed pieces: "
+            + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.FAILED_PIECES));
   }
 
   private PieceStatus makeNewPieceStatus(int pieceIndex) {

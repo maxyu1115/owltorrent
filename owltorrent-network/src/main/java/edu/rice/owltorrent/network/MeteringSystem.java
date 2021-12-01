@@ -2,7 +2,6 @@ package edu.rice.owltorrent.network;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-
 import java.util.Comparator;
 import java.util.Map;
 import java.util.PriorityQueue;
