@@ -15,6 +15,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
@@ -29,8 +30,6 @@ class SocketConnector extends PeerConnector {
   private final TaskExecutor taskExecutor;
 
   private boolean initiated = false;
-
-  private Thread listenerThread;
 
   private DataOutputStream out;
   private ReadableByteChannel in;
@@ -56,6 +55,8 @@ class SocketConnector extends PeerConnector {
           }
         }
       };
+
+  private Future<Void> listenerThread;
 
   private SocketConnector(
       TwentyByteId ourPeerId,
@@ -104,7 +105,7 @@ class SocketConnector extends PeerConnector {
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
-    taskExecutor.submitLongRunningTask(listenForInput);
+    listenerThread = taskExecutor.submitLongRunningTask(listenForInput);
     initiated = true;
   }
 
@@ -118,7 +119,7 @@ class SocketConnector extends PeerConnector {
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
     // listen for input with busy waiting
-    taskExecutor.submitLongRunningTask(listenForInput);
+    listenerThread = taskExecutor.submitLongRunningTask(listenForInput);
     initiated = true;
   }
 
@@ -130,13 +131,15 @@ class SocketConnector extends PeerConnector {
   }
 
   void writeMessage(PeerMessage message) throws IOException {
+    log.info("Attempting to send msg: " + message);
     out.write(message.toBytes());
+    log.info("Sent msg: " + message);
   }
 
   @Override
   public void close() throws Exception {
     if (listenerThread != null) {
-      listenerThread.interrupt();
+      listenerThread.cancel(true);
     }
     peerSocket.close();
   }

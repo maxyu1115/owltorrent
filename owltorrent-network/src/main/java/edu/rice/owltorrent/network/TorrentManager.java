@@ -220,6 +220,7 @@ public class TorrentManager implements LongRunningTask, AutoCloseable {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're only downloading from seeders
       //  Request a missing piece from each Peer
+      log.info("heyyy" + seeders);
       List<Peer> connections =
           seeders.stream()
               .filter(
@@ -229,6 +230,8 @@ public class TorrentManager implements LongRunningTask, AutoCloseable {
                           && !peers.get(peer).waitingForRequest.get())
               .collect(Collectors.toList());
       Collections.shuffle(connections);
+
+      log.info(connections);
 
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {

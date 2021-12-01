@@ -15,13 +15,17 @@ public class SocketWriteMsgTask implements Task {
   @Override
   public void run() {
     PeerMessage msg = socketConnector.getOutQueue().poll();
+    log.info("Writing msg" + msg);
     try {
       if (msg != null) {
         socketConnector.writeMessage(msg);
+        log.info("Sent msg" + msg);
       } else {
         log.error("Outgoing message queue empty despite SocketWriteMsgTask");
       }
     } catch (IOException ioException) {
+      log.error(ioException);
+      log.info("wtf: " + ioException);
       socketConnector.getOutQueue().add(msg);
     }
   }

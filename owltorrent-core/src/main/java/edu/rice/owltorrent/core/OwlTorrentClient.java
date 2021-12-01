@@ -64,8 +64,10 @@ public class OwlTorrentClient {
   public OwlTorrentClient(int port, PeerLocator locator, TwentyByteId peerId) {
     listenerPort = port;
     ourPeerId = peerId;
-    this.connectorFactory = SocketConnectorFactory.SINGLETON;
-    handShakeListener = new HandShakeListener(torrentRepository, connectorFactory, listenerPort);
+    threadPoolManager = new ThreadPoolManager();
+    this.connectorFactory = new SocketConnectorFactory(threadPoolManager);
+    handShakeListener =
+        new HandShakeListener(threadPoolManager, torrentRepository, connectorFactory, listenerPort);
     listenerThread = new Thread(this.handShakeListener);
     this.locator = locator;
   }
@@ -91,7 +93,8 @@ public class OwlTorrentClient {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createDownloadingStorageAdapter(torrentContext.getTorrent());
     TorrentManager manager =
-        TorrentManager.makeDownloader(torrentContext, adapter, connectorFactory, locator, threadPoolManager);
+        TorrentManager.makeDownloader(
+            torrentContext, adapter, connectorFactory, locator, threadPoolManager);
     torrentRepository.registerTorrentManager(manager);
     manager.startDownloadingAsynchronously();
     return manager::getProgressPercent;
@@ -103,7 +106,8 @@ public class OwlTorrentClient {
     TorrentContext torrentContext = findTorrent(torrentFileName);
     StorageAdapter adapter = createSeedingStorageAdapter(torrentContext.getTorrent(), fileName);
     TorrentManager manager =
-        TorrentManager.makeSeeder(torrentContext, adapter, connectorFactory, locator, threadPoolManager);
+        TorrentManager.makeSeeder(
+            torrentContext, adapter, connectorFactory, locator, threadPoolManager);
     torrentRepository.registerTorrentManager(manager);
     try {
       listenerThread.join();
