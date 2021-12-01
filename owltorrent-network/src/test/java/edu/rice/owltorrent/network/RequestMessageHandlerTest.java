@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
+import edu.rice.owltorrent.common.adapters.TaskExecutor;
 import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.PieceActionMessage;
@@ -36,6 +37,8 @@ public class RequestMessageHandlerTest {
 
   @Mock Peer peer;
 
+  @Mock TaskExecutor taskExecutor;
+
   @Before
   public void init() {
     manager =
@@ -43,7 +46,8 @@ public class RequestMessageHandlerTest {
             new TorrentContext(peerId, (short) 8080, torrent),
             storageAdapter,
             factory,
-            new MultipleTrackerConnector());
+            new MultipleTrackerConnector(),
+            taskExecutor);
     messageHandler = manager.getMessageHandler();
   }
 

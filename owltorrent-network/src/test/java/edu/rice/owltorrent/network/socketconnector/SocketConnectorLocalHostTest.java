@@ -1,10 +1,11 @@
-package edu.rice.owltorrent.network.peerconnector;
+package edu.rice.owltorrent.network.socketconnector;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import edu.rice.owltorrent.common.adapters.TaskExecutor;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.Torrent;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
@@ -33,6 +34,7 @@ public class SocketConnectorLocalHostTest {
   private final TwentyByteId infoHash = TwentyByteId.fromString("12345678901234567890");
 
   @Mock private MessageHandler messageHandler;
+  @Mock private TaskExecutor taskExecutor;
 
   private HandShakeListener listener;
 
@@ -42,7 +44,7 @@ public class SocketConnectorLocalHostTest {
     when(torrentRepository.retrieveTorrent(eq(infoHash))).thenReturn(Optional.of(torrentManager));
     when(torrent.getInfoHash()).thenReturn(infoHash);
 
-    listener = new HandShakeListener(torrentRepository, SocketConnectorFactory.SINGLETON, 8080);
+    // listener = new HandShakeListener(torrentRepository, SocketConnectorFactory.SINGLETON, 8080);
   }
 
   // @Test(expected = Test.None.class /* no exception expected */)
@@ -56,7 +58,7 @@ public class SocketConnectorLocalHostTest {
 
       Peer host = new Peer(peerId, new InetSocketAddress("127.0.0.1", 8080), torrent);
       SocketConnector connector =
-          SocketConnector.makeInitialConnection(peerId, host, messageHandler);
+          SocketConnector.makeInitialConnection(peerId, host, messageHandler, taskExecutor);
       connector.initiateConnection();
 
     } catch (Exception e) {

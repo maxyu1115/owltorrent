@@ -3,6 +3,8 @@ package edu.rice.owltorrent.network;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.math.IntMath;
 import edu.rice.owltorrent.common.adapters.StorageAdapter;
+import edu.rice.owltorrent.common.adapters.TaskExecutor;
+import edu.rice.owltorrent.common.adapters.TaskExecutor.LongRunningTask;
 import edu.rice.owltorrent.common.entity.*;
 import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
@@ -26,7 +28,7 @@ import lombok.extern.log4j.Log4j2;
  * @author Lorraine Lyu, Max Yu
  */
 @Log4j2(topic = "network")
-public class TorrentManager implements Runnable, AutoCloseable {
+public class TorrentManager implements LongRunningTask, AutoCloseable {
   @RequiredArgsConstructor
   private static class PeerConnectionContext {
     final PeerConnector peerConnector;
@@ -56,6 +58,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   private final StorageAdapter networkStorageAdapter;
   private final PeerConnectorFactory peerConnectorFactory;
+  private final TaskExecutor executor;
   @Getter private final Torrent torrent;
 
   @VisibleForTesting
@@ -63,7 +66,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
       TorrentContext torrentContext,
       StorageAdapter adapter,
       PeerConnectorFactory peerConnectorFactory,
-      PeerLocator locator) {
+      PeerLocator locator,
+      TaskExecutor executor) {
     this.torrentContext = torrentContext;
     this.ourPeerId = torrentContext.getOurPeerId();
     this.torrent = torrentContext.getTorrent();
@@ -71,15 +75,17 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.networkStorageAdapter = adapter;
     this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
+    this.executor = executor;
   }
 
   public static TorrentManager makeSeeder(
       TorrentContext torrentContext,
       StorageAdapter adapter,
       PeerConnectorFactory peerConnectorFactory,
-      PeerLocator locator) {
+      PeerLocator locator,
+      TaskExecutor taskExecutor) {
     TorrentManager manager =
-        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
+        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator, taskExecutor);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.completedPieces.add(idx);
     }
@@ -92,9 +98,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
       TorrentContext torrentContext,
       StorageAdapter adapter,
       PeerConnectorFactory peerConnectorFactory,
-      PeerLocator locator) {
+      PeerLocator locator,
+      TaskExecutor executor) {
     TorrentManager manager =
-        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
+        new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator, executor);
     for (int idx = 0; idx < manager.totalPieces; idx++) {
       manager.notStartedPieces.add(idx);
     }
@@ -123,27 +130,26 @@ public class TorrentManager implements Runnable, AutoCloseable {
         continue;
       }
       // TODO: refactor this when adding the thread pool...
-      new Thread(
-              () -> {
-                try {
-                  PeerConnector connector =
-                      peerConnectorFactory.makeInitialConnection(ourPeerId, peer, messageHandler);
-                  connector.initiateConnection();
-                  addPeer(connector, peer);
-                  // TODO: revise
-                  connector.sendMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
-                } catch (IOException e) {
-                  e.printStackTrace(System.err);
-                  log.error("Error connecting peer {}", peer.getAddress());
-                }
-              })
-          .start();
+      executor.submitTask(
+          () -> {
+            try {
+              PeerConnector connector =
+                  peerConnectorFactory.makeInitialConnection(ourPeerId, peer, messageHandler);
+              connector.initiateConnection();
+              addPeer(connector, peer);
+              // TODO: revise
+              connector.sendMessage(new PayloadlessMessage(PeerMessage.MessageType.INTERESTED));
+            } catch (IOException e) {
+              e.printStackTrace(System.err);
+              log.error("Error connecting peer {}", peer.getAddress());
+            }
+          });
     }
   }
 
   public void startDownloadingAsynchronously() {
     // TODO: make thread pool scheduler
-    new Thread(this).start();
+    executor.submitLongRunningTask(this);
   }
 
   public float getProgressPercent() {
@@ -214,6 +220,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're only downloading from seeders
       //  Request a missing piece from each Peer
+      log.info("heyyy" + seeders);
       List<Peer> connections =
           seeders.stream()
               .filter(
@@ -223,6 +230,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
                           && !peers.get(peer).waitingForRequest.get())
               .collect(Collectors.toList());
       Collections.shuffle(connections);
+
+      log.info(connections);
 
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {

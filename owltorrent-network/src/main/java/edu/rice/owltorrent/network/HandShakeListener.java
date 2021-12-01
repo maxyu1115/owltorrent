@@ -1,5 +1,7 @@
 package edu.rice.owltorrent.network;
 
+import edu.rice.owltorrent.common.adapters.TaskExecutor;
+import edu.rice.owltorrent.common.adapters.TaskExecutor.LongRunningTask;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
@@ -10,7 +12,8 @@ import lombok.extern.log4j.Log4j2;
 /** @author Lorraine Lyu */
 @Log4j2(topic = "network")
 @RequiredArgsConstructor
-public class HandShakeListener implements Runnable {
+public class HandShakeListener implements LongRunningTask {
+  private final TaskExecutor executor;
   private final TorrentRepository torrentRepository;
   private final PeerConnectorFactory peerConnectorFactory;
   private final int port;
@@ -26,7 +29,7 @@ public class HandShakeListener implements Runnable {
           log.info("Incoming network connection");
           ClientHandler handler =
               new ClientHandler(torrentRepository, peerConnectorFactory, clientSocketChannel);
-          new Thread(handler).start();
+          executor.submitTask(handler);
         } catch (IOException ioException) {
           ioException.printStackTrace();
           log.error(

@@ -1,5 +1,7 @@
-package edu.rice.owltorrent.network.peerconnector;
+package edu.rice.owltorrent.network.socketconnector;
 
+import edu.rice.owltorrent.common.adapters.TaskExecutor;
+import edu.rice.owltorrent.common.adapters.TaskExecutor.LongRunningTask;
 import edu.rice.owltorrent.common.entity.Peer;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import edu.rice.owltorrent.network.MessageHandler;
@@ -11,6 +13,10 @@ import java.io.IOException;
 import java.net.Socket;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -21,16 +27,16 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2(topic = "network")
 class SocketConnector extends PeerConnector {
   private final Socket peerSocket;
+  private final TaskExecutor taskExecutor;
 
   private boolean initiated = false;
 
-  private Thread listenerThread;
-
   private DataOutputStream out;
   private ReadableByteChannel in;
+  @Getter private final Queue<PeerMessage> outQueue = new ConcurrentLinkedQueue<>();
 
-  private final Runnable listenForInput =
-      new Runnable() {
+  private final LongRunningTask listenForInput =
+      new LongRunningTask() {
         @Override
         public void run() {
           while (true) {
@@ -50,24 +56,37 @@ class SocketConnector extends PeerConnector {
         }
       };
 
+  private Future<Void> listenerThread;
+
   private SocketConnector(
-      TwentyByteId ourPeerId, Peer peer, MessageHandler handler, Socket peerSocket) {
+      TwentyByteId ourPeerId,
+      Peer peer,
+      MessageHandler handler,
+      TaskExecutor taskExecutor,
+      Socket peerSocket) {
     super(ourPeerId, peer, handler);
+    this.taskExecutor = taskExecutor;
     this.peerSocket = peerSocket;
   }
 
   public static SocketConnector makeInitialConnection(
-      TwentyByteId ourPeerId, Peer peer, MessageHandler handler) throws IOException {
+      TwentyByteId ourPeerId, Peer peer, MessageHandler handler, TaskExecutor taskExecutor)
+      throws IOException {
     return new SocketConnector(
         ourPeerId,
         peer,
         handler,
+        taskExecutor,
         new Socket(peer.getAddress().getAddress(), peer.getAddress().getPort()));
   }
 
   static SocketConnector makeRespondingConnection(
-      TwentyByteId ourPeerId, Peer peer, MessageHandler handler, Socket peerSocket) {
-    return new SocketConnector(ourPeerId, peer, handler, peerSocket);
+      TwentyByteId ourPeerId,
+      Peer peer,
+      MessageHandler handler,
+      TaskExecutor taskExecutor,
+      Socket peerSocket) {
+    return new SocketConnector(ourPeerId, peer, handler, taskExecutor, peerSocket);
   }
 
   @Override
@@ -86,8 +105,7 @@ class SocketConnector extends PeerConnector {
           String.format("Invalid handshake from peer id=%s", this.peer.getPeerID()));
     }
     // listen for input with busy waiting
-    listenerThread = new Thread(listenForInput);
-    listenerThread.start();
+    listenerThread = taskExecutor.submitLongRunningTask(listenForInput);
     initiated = true;
   }
 
@@ -101,21 +119,27 @@ class SocketConnector extends PeerConnector {
 
     this.out.write(PeerMessage.constructHandShakeMessage(this.peer.getTorrent(), ourPeerId));
     // listen for input with busy waiting
-    listenerThread = new Thread(listenForInput);
-    listenerThread.start();
+    listenerThread = taskExecutor.submitLongRunningTask(listenForInput);
     initiated = true;
   }
 
   @Override
-  public void sendMessage(PeerMessage message) throws IOException {
+  public void sendMessage(PeerMessage message) {
     log.info("Writing: {}", message);
+    outQueue.add(message);
+    taskExecutor.submitTask(new SocketWriteMsgTask(this));
+  }
+
+  void writeMessage(PeerMessage message) throws IOException {
+    log.info("Attempting to send msg: " + message);
     out.write(message.toBytes());
+    log.info("Sent msg: " + message);
   }
 
   @Override
   public void close() throws Exception {
     if (listenerThread != null) {
-      listenerThread.interrupt();
+      listenerThread.cancel(true);
     }
     peerSocket.close();
   }
