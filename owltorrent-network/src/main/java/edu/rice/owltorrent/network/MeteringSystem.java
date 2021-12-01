@@ -2,7 +2,10 @@ package edu.rice.owltorrent.network;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
-import java.util.*;
+
+import java.util.Comparator;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -47,16 +50,22 @@ public class MeteringSystem {
    */
   public AtomicDouble getMetric(
       String metricType, TwentyByteId peerID, Integer pieceIndex, Enum<?> metricName) {
+    AtomicDouble defaultVal = new AtomicDouble(0);
+
     if (metricType.equals("peer")) {
-      if (peerID == null) return null;
-      return peerMetrics.get(peerID).get(metricName);
+      if (peerID == null || !peerMetrics.containsKey(peerID)) {
+        return defaultVal;
+      }
+      return peerMetrics.get(peerID).getOrDefault(metricName, defaultVal);
     } else if (metricType.equals("system")) {
-      return systemMetrics.get(metricName);
+      return systemMetrics.getOrDefault(metricName, defaultVal);
     } else if (metricType.equals("piece")) {
-      if (pieceIndex == null) return null;
-      return pieceMetrics.get(pieceIndex).get(metricName);
+      if (pieceIndex == null || !pieceMetrics.containsKey(pieceIndex)) {
+        return defaultVal;
+      }
+      return pieceMetrics.get(pieceIndex).getOrDefault(metricName, defaultVal);
     } else {
-      return null;
+      return defaultVal;
     }
   }
 
