@@ -40,7 +40,10 @@ public class RequestMessageHandlerTest {
   public void init() {
     manager =
         new TorrentManager(
-            new TorrentContext(peerId, (short) 8080, torrent), storageAdapter, factory);
+            new TorrentContext(peerId, (short) 8080, torrent),
+            storageAdapter,
+            factory,
+            new MultipleTrackerConnector());
     messageHandler = manager.getMessageHandler();
   }
 
