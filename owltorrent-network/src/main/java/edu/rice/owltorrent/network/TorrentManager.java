@@ -59,6 +59,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final PeerConnectorFactory peerConnectorFactory;
   @Getter private final Torrent torrent;
 
+  private final MeteringSystem meteringSystem;
+
   @VisibleForTesting
   TorrentManager(
       TorrentContext torrentContext,
@@ -72,6 +74,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     this.networkStorageAdapter = adapter;
     this.peerConnectorFactory = peerConnectorFactory;
     this.totalPieces = torrent.getPieceHashes().size();
+    this.meteringSystem = new MeteringSystem();
   }
 
   public static TorrentManager makeSeeder(
@@ -212,6 +215,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   @Override
   public void run() {
+    // Start timer
+    double startingTime = System.currentTimeMillis();
+
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
       // TODO: here we're only downloading from seeders
       //  Request a missing piece from each Peer
@@ -276,6 +282,23 @@ public class TorrentManager implements Runnable, AutoCloseable {
         log.error(e);
       }
     }
+
+    // End timer
+    double endingTime = System.currentTimeMillis();
+    meteringSystem.addSystemMetric(
+        MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME, (endingTime - startingTime));
+
+    log.info(
+        "Entire download time: "
+            + meteringSystem.getMetric(
+                "system", null, null, MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME));
+    log.info(
+        "Num of effective pieces: "
+            + meteringSystem.getMetric(
+                "system", null, null, MeteringSystem.Metrics.EFFECTIVE_PIECES));
+    log.info(
+        "Num of failed pieces: "
+            + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.FAILED_PIECES));
   }
 
   private boolean requestFromLeecher(int index, PieceStatus pieceStatus, int blockIndex) {
@@ -385,11 +408,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
         e.printStackTrace();
       }
       if (!valid) {
+        meteringSystem.addSystemMetric(MeteringSystem.Metrics.FAILED_PIECES, 1);
         for (AtomicInteger blockStatus : status.status) {
           blockStatus.set(BLOCK_NOT_STARTED);
         }
         uncompletedPieces.put(pieceIndex, status);
       } else {
+        meteringSystem.addSystemMetric(MeteringSystem.Metrics.EFFECTIVE_PIECES, 1);
         completedPieces.add(pieceIndex);
         notAdvertisedPieces.add(pieceIndex);
       }
