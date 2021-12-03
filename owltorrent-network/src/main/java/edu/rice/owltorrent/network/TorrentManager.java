@@ -237,7 +237,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
           boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
           if (leecherFlag) leecherCount--;
-          else requestBlockFromPeer(connections.remove(0), progress, i);
+          else {
+            if (!connections.isEmpty()) requestBlockFromPeer(connections.remove(0), progress, i);
+          }
         }
         if (connections.isEmpty() && leecherCount <= 0) break;
       }
@@ -248,7 +250,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
         boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
         if (leecherFlag) leecherCount--;
-        else requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+        else {
+          if (!connections.isEmpty())
+            requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+        }
       }
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
