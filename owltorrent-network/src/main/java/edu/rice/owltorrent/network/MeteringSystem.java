@@ -27,10 +27,11 @@ public class MeteringSystem {
   }
 
   // Maps to store metrics and associated values
-  public static ConcurrentHashMap<TwentyByteId, ConcurrentHashMap<Enum<?>, AtomicDouble>>
+  private final ConcurrentHashMap<TwentyByteId, ConcurrentHashMap<Enum<Metrics>, AtomicDouble>>
       peerMetrics;
-  public static ConcurrentHashMap<Enum<?>, AtomicDouble> systemMetrics;
-  public static ConcurrentHashMap<Integer, ConcurrentHashMap<Enum<?>, AtomicDouble>> pieceMetrics;
+  private final ConcurrentHashMap<Enum<Metrics>, AtomicDouble> systemMetrics;
+  private final ConcurrentHashMap<Integer, ConcurrentHashMap<Enum<Metrics>, AtomicDouble>>
+      pieceMetrics;
 
   public MeteringSystem() {
     this.peerMetrics = new ConcurrentHashMap<>();
@@ -47,24 +48,26 @@ public class MeteringSystem {
    * @param metricName metric to track
    * @return metric value for peer
    */
-  public AtomicDouble getMetric(
-      String metricType, TwentyByteId peerID, Integer pieceIndex, Enum<?> metricName) {
+  public double getMetric(
+      String metricType, TwentyByteId peerID, Integer pieceIndex, Enum<Metrics> metricName) {
     AtomicDouble defaultVal = new AtomicDouble(0);
 
     if (metricType.equals("peer")) {
-      if (peerID == null || !peerMetrics.containsKey(peerID)) {
-        return defaultVal;
+      if (peerID == null
+          || !peerMetrics.containsKey(peerID)) { // Incomplete input/ metric not available
+        return defaultVal.doubleValue();
       }
-      return peerMetrics.get(peerID).getOrDefault(metricName, defaultVal);
+      return peerMetrics.get(peerID).getOrDefault(metricName, defaultVal).doubleValue();
     } else if (metricType.equals("system")) {
-      return systemMetrics.getOrDefault(metricName, defaultVal);
+      return systemMetrics.getOrDefault(metricName, defaultVal).doubleValue();
     } else if (metricType.equals("piece")) {
-      if (pieceIndex == null || !pieceMetrics.containsKey(pieceIndex)) {
-        return defaultVal;
+      if (pieceIndex == null
+          || !pieceMetrics.containsKey(pieceIndex)) { // Incomplete input/ metric not available
+        return defaultVal.doubleValue();
       }
-      return pieceMetrics.get(pieceIndex).getOrDefault(metricName, defaultVal);
+      return pieceMetrics.get(pieceIndex).getOrDefault(metricName, defaultVal).doubleValue();
     } else {
-      return defaultVal;
+      return defaultVal.doubleValue();
     }
   }
 
@@ -74,7 +77,7 @@ public class MeteringSystem {
    * @param metricName metric to track
    * @param metricVal numerical value of metric
    */
-  public void addSystemMetric(Enum<?> metricName, double metricVal) {
+  public void addSystemMetric(Enum<Metrics> metricName, double metricVal) {
     // Update or create new entry in system map
     double currVal = systemMetrics.getOrDefault(metricName, new AtomicDouble(0)).doubleValue();
     systemMetrics.put(metricName, new AtomicDouble(currVal + metricVal));
@@ -89,8 +92,8 @@ public class MeteringSystem {
    * @param metricName metric to track
    * @param metricVal numerical value of metric
    */
-  public void addPeerMetric(TwentyByteId peerID, Enum<?> metricName, double metricVal) {
-    ConcurrentHashMap<Enum<?>, AtomicDouble> metricsForPeer;
+  public void addPeerMetric(TwentyByteId peerID, Enum<Metrics> metricName, double metricVal) {
+    ConcurrentHashMap<Enum<Metrics>, AtomicDouble> metricsForPeer;
 
     if (peerMetrics.containsKey(peerID)) {
       metricsForPeer = peerMetrics.get(peerID);
@@ -117,8 +120,8 @@ public class MeteringSystem {
    * @param metricName metric to track
    * @param metricVal numerical value of metric
    */
-  public void addPieceMetric(Integer pieceIndex, Enum<?> metricName, double metricVal) {
-    ConcurrentHashMap<Enum<?>, AtomicDouble> metricsForPiece;
+  public void addPieceMetric(Integer pieceIndex, Enum<Metrics> metricName, double metricVal) {
+    ConcurrentHashMap<Enum<Metrics>, AtomicDouble> metricsForPiece;
 
     if (pieceMetrics.containsKey(pieceIndex)) {
       metricsForPiece = pieceMetrics.get(pieceIndex);
@@ -144,7 +147,7 @@ public class MeteringSystem {
    * @param metricName metric to rank by
    * @return ranked peers
    */
-  public PriorityQueue<String[]> rankPeersByMetric(Enum<?> metricName) {
+  public PriorityQueue<String[]> rankPeersByMetric(Enum<Metrics> metricName) {
     // Create priority queue for peers
     PriorityQueue<String[]> rankedPeers =
         new PriorityQueue<>(
@@ -159,7 +162,7 @@ public class MeteringSystem {
             });
 
     // Populate queue
-    for (Map.Entry<TwentyByteId, ConcurrentHashMap<Enum<?>, AtomicDouble>> peer :
+    for (Map.Entry<TwentyByteId, ConcurrentHashMap<Enum<Metrics>, AtomicDouble>> peer :
         peerMetrics.entrySet()) {
       // Only add peers that contain specified metric
       if (peer.getValue().containsKey(metricName)) {

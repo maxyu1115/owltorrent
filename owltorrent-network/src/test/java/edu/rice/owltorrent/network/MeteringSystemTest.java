@@ -1,107 +1,57 @@
 package edu.rice.owltorrent.network;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import edu.rice.owltorrent.common.entity.TwentyByteId;
 import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class MeteringSystemTest {
 
   @Test
-  public void getPeerMetric() {
+  public void addAndGetPeerMetric() {
     MeteringSystem meteringSystem = new MeteringSystem();
 
     TwentyByteId peerID = TwentyByteId.fromString("12345678901234567890");
-
-    // Populate inner map
-    ConcurrentHashMap<Enum<?>, AtomicDouble> metricMap = new ConcurrentHashMap<>();
     MeteringSystem.Metrics metric = MeteringSystem.Metrics.PEER_DOWNLOAD_TIME;
-    AtomicDouble metricVal = new AtomicDouble(10);
-    metricMap.put(metric, metricVal);
+    double metricVal = 10;
 
-    // Populate outer map
-    meteringSystem.peerMetrics.put(peerID, metricMap);
+    // add metric
+    meteringSystem.addPeerMetric(peerID, metric, metricVal);
 
-    Assert.assertEquals(meteringSystem.getMetric("peer", peerID, null, metric), metricVal);
+    // get metric
+    Assert.assertEquals(meteringSystem.getMetric("peer", peerID, null, metric), metricVal, .001);
   }
 
   @Test
-  public void getSystemMetric() {
+  public void addAndGetSystemMetric() {
     MeteringSystem meteringSystem = new MeteringSystem();
 
     MeteringSystem.Metrics metric = MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME;
-    AtomicDouble metricVal = new AtomicDouble(5.5);
-    meteringSystem.systemMetrics.put(metric, metricVal);
+    double metricVal = 5.5;
 
-    Assert.assertEquals(meteringSystem.getMetric("system", null, null, metric), metricVal);
+    // add metric
+    meteringSystem.addSystemMetric(metric, metricVal);
+
+    // get metric
+    Assert.assertEquals(meteringSystem.getMetric("system", null, null, metric), metricVal, .001);
   }
 
   @Test
-  public void getPieceMetric() {
+  public void addAndGetPieceMetric() {
     MeteringSystem meteringSystem = new MeteringSystem();
 
     Integer pieceIndex = 12;
-
-    // Populate inner map
-    ConcurrentHashMap<Enum<?>, AtomicDouble> metricMap = new ConcurrentHashMap<>();
     MeteringSystem.Metrics metric = MeteringSystem.Metrics.PIECE_DOWNLOAD_TIME;
-    AtomicDouble metricVal = new AtomicDouble(10);
-    metricMap.put(metric, metricVal);
+    double metricVal = 3.1;
 
-    // Populate outer map
-    meteringSystem.pieceMetrics.put(pieceIndex, metricMap);
+    // add metric
+    meteringSystem.addPieceMetric(pieceIndex, metric, metricVal);
 
-    Assert.assertEquals(meteringSystem.getMetric("piece", null, pieceIndex, metric), metricVal);
-  }
-
-  @Test
-  public void addPeerMetric() {
-    MeteringSystem meteringSystem = new MeteringSystem();
-    TwentyByteId peerID = TwentyByteId.fromString("12345678901234567890");
-
-    // Add to metering system
-    meteringSystem.addPeerMetric(peerID, MeteringSystem.Metrics.PEER_DOWNLOAD_TIME, 1);
-
-    double metricVal =
-        meteringSystem
-            .peerMetrics
-            .get(peerID)
-            .get(MeteringSystem.Metrics.PEER_DOWNLOAD_TIME)
-            .doubleValue();
-    Assert.assertEquals(metricVal, 1, .001);
-  }
-
-  @Test
-  public void addSystemMetric() {
-    MeteringSystem meteringSystem = new MeteringSystem();
-
-    // Add to metering system
-    meteringSystem.addSystemMetric(MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME, 7.2);
-
-    double metricVal =
-        meteringSystem.systemMetrics.get(MeteringSystem.Metrics.ENTIRE_DOWNLOAD_TIME).doubleValue();
-    Assert.assertEquals(metricVal, 7.2, .001);
-  }
-
-  @Test
-  public void addPieceMetric() {
-    MeteringSystem meteringSystem = new MeteringSystem();
-    Integer pieceIndex = 105;
-
-    // Add to metering system
-    meteringSystem.addPieceMetric(pieceIndex, MeteringSystem.Metrics.PIECE_DOWNLOAD_TIME, 1.8);
-
-    double metricVal =
-        meteringSystem
-            .pieceMetrics
-            .get(pieceIndex)
-            .get(MeteringSystem.Metrics.PIECE_DOWNLOAD_TIME)
-            .doubleValue();
-    Assert.assertEquals(metricVal, 1.8, .001);
+    // get metric
+    Assert.assertEquals(
+        meteringSystem.getMetric("piece", null, pieceIndex, metric), metricVal, .001);
   }
 
   @Test
