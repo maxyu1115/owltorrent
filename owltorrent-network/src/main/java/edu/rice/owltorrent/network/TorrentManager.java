@@ -283,8 +283,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     if (!indexToLeechers.containsKey(index)) return leecherFlag;
 
     Set<Peer> leecherSet = indexToLeechers.get(index);
-    while (leecherSet.iterator().hasNext()) {
-      Peer leecher = leecherSet.iterator().next();
+    for (Peer leecher : leecherSet) {
       if (leechers.contains(leecher)
           && !leecher.isPeerChoked()
           && leecher.isAmInterested()
@@ -494,8 +493,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               break;
             case HAVE:
               int idx = ((HaveMessage) message).getIndex();
-              indexToLeechers.putIfAbsent(idx, ConcurrentHashMap.newKeySet());
-              indexToLeechers.get(idx).add(peer);
+              indexToLeechers.computeIfAbsent(idx, x -> ConcurrentHashMap.newKeySet()).add(peer);
               break;
             case BITFIELD:
               Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
@@ -510,12 +508,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
                   break;
                 }
               }
-              if (!leecherFlag && peers.containsKey(peer)) {
-                seeders.add(peer);
+              if (!leecherFlag) {
+                if (peers.containsKey(peer)) seeders.add(peer);
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
-                  indexToLeechers.putIfAbsent(i, ConcurrentHashMap.newKeySet());
-                  indexToLeechers.get(i).add(peer);
+                  indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
                 }
               }
               break;
