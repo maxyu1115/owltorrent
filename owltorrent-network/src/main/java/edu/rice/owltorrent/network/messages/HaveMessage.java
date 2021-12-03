@@ -41,4 +41,8 @@ public class HaveMessage extends PeerMessage {
     int index = buffer.getInt();
     return new HaveMessage(index);
   }
+
+  public int getIndex() {
+    return this.index;
+  }
 }

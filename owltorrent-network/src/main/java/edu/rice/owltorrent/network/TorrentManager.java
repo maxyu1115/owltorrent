@@ -53,6 +53,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   private final Map<Peer, PeerConnectionContext> peers = new ConcurrentHashMap<>();
   private final Set<Peer> seeders = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Set<Peer> leechers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Map<Integer, Set<Peer>> indexToLeechers = new ConcurrentHashMap<>();
 
   private final StorageAdapter networkStorageAdapter;
   private final PeerConnectorFactory peerConnectorFactory;
@@ -224,23 +225,30 @@ public class TorrentManager implements Runnable, AutoCloseable {
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
+      int leecherCount = leechers.size();
+
       for (PieceStatus progress : uncompletedPieces.values()) {
         for (int i = 0; i < progress.status.size(); i++) {
-          if (connections.isEmpty()) break;
+          if (connections.isEmpty() && leecherCount <= 0) break;
 
           if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
             continue;
           }
 
-          requestBlockFromPeer(connections.remove(0), progress, i);
+          boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
+          if (leecherFlag) leecherCount--;
+          else requestBlockFromPeer(connections.remove(0), progress, i);
         }
-        if (connections.isEmpty()) break;
+        if (connections.isEmpty() && leecherCount <= 0) break;
       }
-      while (!connections.isEmpty() && !notStartedPieces.isEmpty()) {
+      while ((leecherCount > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
         int notStartedIndex = notStartedPieces.remove();
         PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
         uncompletedPieces.put(notStartedIndex, newPieceStatus);
-        requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+
+        boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
+        if (leecherFlag) leecherCount--;
+        else requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
       }
 
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
@@ -268,6 +276,24 @@ public class TorrentManager implements Runnable, AutoCloseable {
         log.error(e);
       }
     }
+  }
+
+  private boolean requestFromLeecher(int index, PieceStatus pieceStatus, int blockIndex) {
+    boolean leecherFlag = false;
+    if (!indexToLeechers.containsKey(index)) return leecherFlag;
+
+    Set<Peer> leecherSet = indexToLeechers.get(index);
+    for (Peer leecher : leecherSet) {
+      if (leechers.contains(leecher)
+          && !leecher.isPeerChoked()
+          && leecher.isAmInterested()
+          && !peers.get(leecher).waitingForRequest.get()) {
+        requestBlockFromPeer(leecher, pieceStatus, blockIndex);
+        leecherFlag = true;
+        break;
+      }
+    }
+    return leecherFlag;
   }
 
   private PieceStatus makeNewPieceStatus(int pieceIndex) {
@@ -466,20 +492,28 @@ public class TorrentManager implements Runnable, AutoCloseable {
               peer.setPeerInterested(false);
               break;
             case HAVE:
+              int idx = ((HaveMessage) message).getIndex();
+              indexToLeechers.computeIfAbsent(idx, x -> ConcurrentHashMap.newKeySet()).add(peer);
               break;
             case BITFIELD:
               Bitfield bitfield = ((BitfieldMessage) message).getBitfield();
               peer.setBitfield(bitfield);
+              boolean leecherFlag = false;
               for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
                 if (!(bitfield.getBit(i))) {
                   if (peers.containsKey(peer)) {
                     leechers.add(peer);
                   }
-                  return;
+                  leecherFlag = true;
+                  break;
                 }
               }
-              if (peers.containsKey(peer)) {
-                seeders.add(peer);
+              if (!leecherFlag) {
+                if (peers.containsKey(peer)) seeders.add(peer);
+              } else {
+                for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
+                  indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
+                }
               }
               break;
             case REQUEST:
