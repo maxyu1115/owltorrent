@@ -56,7 +56,7 @@ public final class MessageReader {
       totalReadBytes += readBytes;
       log.debug("Total read bytes " + totalReadBytes);
     }
-    log.info("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
+    log.debug("Actual length read: " + totalReadBytes + ", goal length " + pstrLength);
     buffer.rewind();
     return PeerMessage.parse(buffer);
   }

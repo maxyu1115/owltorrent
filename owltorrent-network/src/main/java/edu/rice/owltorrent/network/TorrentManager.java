@@ -8,6 +8,7 @@ import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.math.RoundingMode;
+import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -414,6 +415,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       }
       if (!valid) {
         meteringSystem.addSystemMetric(MeteringSystem.Metrics.FAILED_PIECES, 1);
+        log.error("Piece not valid: {}", pieceIndex);
         for (AtomicInteger blockStatus : status.status) {
           blockStatus.set(BLOCK_NOT_STARTED);
         }
@@ -542,7 +544,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
                 if (peers.containsKey(peer)) seeders.add(peer);
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
-                  indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
+                  if (!(bitfield.getBit(i))) {
+                    indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
+                  }
                 }
               }
               break;
@@ -556,6 +560,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
               int index = ((PieceActionMessage) message).getIndex();
               int begin = ((PieceActionMessage) message).getBegin();
               int length = ((PieceActionMessage) message).getLength();
+              if (!completedPieces.contains(index)) {
+                break;
+              }
               FileBlock piece;
               try {
                 piece = networkStorageAdapter.read(new FileBlockInfo(index, begin, length));
