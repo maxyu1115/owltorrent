@@ -99,9 +99,12 @@ public class TorrentManager implements Runnable, AutoCloseable {
       PeerLocator locator) {
     TorrentManager manager =
         new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
+    List<Integer> indices = new ArrayList<>();
     for (int idx = 0; idx < manager.totalPieces; idx++) {
-      manager.notStartedPieces.add(idx);
+      indices.add(idx);
     }
+    Collections.shuffle(indices);
+    manager.notStartedPieces.addAll(indices);
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
     //    manager.initPeers(
