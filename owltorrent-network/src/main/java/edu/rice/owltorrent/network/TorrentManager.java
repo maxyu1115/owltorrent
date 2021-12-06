@@ -8,7 +8,6 @@ import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.math.RoundingMode;
-import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -267,9 +266,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         // Advertise with Have message for more bandwidth
         for (Integer pieceIndex : notAdvertisedPieces) {
           for (Peer leecher : leechers) {
-            if (peers.containsKey(leecher)
-                && leecher.isPeerChoked()
-                && leecher.isPeerInterested()) {
+            if (peers.containsKey(leecher) && leecher.isPeerInterested()) {
               PeerConnectionContext conn = peers.get(leecher);
               try {
                 conn.peerConnector.sendMessage(new HaveMessage(pieceIndex));
@@ -545,7 +542,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
                   if (!(bitfield.getBit(i))) {
-                    indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
+                    indexToLeechers
+                        .computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet())
+                        .add(peer);
                   }
                 }
               }
