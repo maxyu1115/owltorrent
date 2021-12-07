@@ -37,7 +37,7 @@ class SocketConnector extends PeerConnector {
             try {
               handleMessage(in);
             } catch (InterruptedException e) {
-              log.info(e);
+              log.debug(e);
 
               try {
                 close();
@@ -108,7 +108,7 @@ class SocketConnector extends PeerConnector {
 
   @Override
   public void sendMessage(PeerMessage message) throws IOException {
-    log.info("Writing to {}: {}", peer.getPeerID(), message);
+    log.debug("Writing to {}: {}", peer.getPeerID(), message);
     out.write(message.toBytes());
   }
 

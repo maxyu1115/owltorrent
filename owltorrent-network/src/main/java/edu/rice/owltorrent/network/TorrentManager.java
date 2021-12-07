@@ -88,7 +88,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       manager.completedPieces.add(idx);
     }
     manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, Event.STARTED);
-    log.info("Started seeding torrent {}", torrentContext.getTorrent());
+    log.debug("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
@@ -104,14 +104,14 @@ public class TorrentManager implements Runnable, AutoCloseable {
       indices.add(idx);
     }
     Collections.shuffle(indices);
-    log.info(indices);
+    log.debug(indices);
     manager.notStartedPieces.addAll(indices);
-    log.info(manager.notStartedPieces);
+    log.debug(manager.notStartedPieces);
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
     //    manager.initPeers(
     //        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
-    log.info("Started downloading torrent {}", torrentContext.getTorrent());
+    log.debug("Started downloading torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
@@ -173,7 +173,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       } else {
         // finish setting up the connection
         connector.sendMessage(new BitfieldMessage(buildBitfield()));
-        log.info("Added peer {}", peer.getPeerID());
+        log.debug("Added peer {}", peer.getPeerID());
       }
     } catch (Exception exception) {
       log.error(exception);
@@ -401,7 +401,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         .compareAndSet(BLOCK_IN_PROGRESS, BLOCK_DONE)) {
       for (AtomicInteger blockStatus : status.status) {
         if (blockStatus.get() != BLOCK_DONE) {
-          log.info(
+          log.debug(
               "Block "
                   + blockInfo.getOffsetWithinPiece() / status.blockLength
                   + " not done for piece number "
@@ -587,7 +587,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
               if (validateAndReportBlockInProgress(peer, fileBlock)) {
                 try {
-                  log.info(
+                  log.debug(
                       "Trying to write file block "
                           + fileBlock.getPieceIndex()
                           + " "

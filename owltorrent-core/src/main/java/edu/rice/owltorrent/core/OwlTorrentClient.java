@@ -104,7 +104,7 @@ public class OwlTorrentClient {
     try {
       listenerThread.join();
     } catch (InterruptedException e) {
-      log.info("Listener Thread interrupted");
+      log.debug("Listener Thread interrupted");
     }
   }
 
@@ -126,7 +126,7 @@ public class OwlTorrentClient {
     // For now we just support one file. TODO(josh): Add support for multiple files
     assert (torrent.getFileLengths().size() == 1);
     Map.Entry<String, Long> singleFile = torrent.getFileLengths().entrySet().iterator().next();
-    log.info(singleFile);
+    log.debug(singleFile);
     DiskFile diskFile =
         new DiskFile(singleFile.getKey(), singleFile.getValue(), torrent.getPieceLength());
     return new StorageAdapter() {

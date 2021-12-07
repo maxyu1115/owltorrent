@@ -14,7 +14,7 @@ public class Peer extends Socket {
   public Peer(String ipAddress, int port) throws IOException {
     super(ipAddress, port);
     this.address = new InetSocketAddress(ipAddress, port);
-    log.info("HEYYYY???");
+    log.debug("HEYYYY???");
   }
 
   public void connect() throws IOException {

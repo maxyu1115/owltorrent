@@ -23,7 +23,7 @@ public class HandShakeListener implements Runnable {
       while (true) {
         try {
           SocketChannel clientSocketChannel = serverSocket.accept();
-          log.info("Incoming network connection");
+          log.debug("Incoming network connection");
           ClientHandler handler =
               new ClientHandler(torrentRepository, peerConnectorFactory, clientSocketChannel);
           new Thread(handler).start();

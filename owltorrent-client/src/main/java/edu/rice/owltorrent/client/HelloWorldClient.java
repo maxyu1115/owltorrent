@@ -60,7 +60,7 @@ public class HelloWorldClient {
     } else {
       File file = new File(torrentFileLocation);
       Torrent torrent = parser.parse(file);
-      log.info(torrent);
+      log.debug(torrent);
       // System.out.println(torrent);
       talkToPort("127.0.0.1", 8080);
     }
