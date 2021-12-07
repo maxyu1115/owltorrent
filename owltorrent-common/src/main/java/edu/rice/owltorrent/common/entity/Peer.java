@@ -20,7 +20,7 @@ public class Peer {
   /** NOTE: address may be null!!! (for peers that connected to us) */
   @EqualsAndHashCode.Include @Getter private final InetSocketAddress address;
 
-  @EqualsAndHashCode.Include @Getter private final Torrent torrent;
+  @EqualsAndHashCode.Include @Getter @ToString.Exclude private final Torrent torrent;
 
   @Getter @ToString.Exclude private Bitfield bitfield = Bitfield.EMPTY_BITFIELD_SINGLETON;
 

@@ -108,7 +108,7 @@ class SocketConnector extends PeerConnector {
 
   @Override
   public void sendMessage(PeerMessage message) throws IOException {
-    log.info("Writing: {}", message);
+    log.info("Writing to {}: {}", peer.getPeerID(), message);
     out.write(message.toBytes());
   }
 
