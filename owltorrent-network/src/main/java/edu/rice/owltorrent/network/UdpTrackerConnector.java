@@ -54,7 +54,7 @@ public class UdpTrackerConnector {
     // Configure Inet address to connect to.
     var tracker = URI.create(announceURL);
     InetSocketAddress trackerAddress = new InetSocketAddress(tracker.getHost(), tracker.getPort());
-    log.info("Tracker address" + trackerAddress);
+    log.debug("Tracker address" + trackerAddress);
 
     // Set up connection with tracker.
     datagramSocket.connect(trackerAddress);
@@ -80,7 +80,7 @@ public class UdpTrackerConnector {
     if (connectResponse == null) {
       return peers; // Return empty peers
     }
-    //    log.info("Connect Response" + Arrays.toString(connectResponse));
+    //    log.debug("Connect Response" + Arrays.toString(connectResponse));
 
     // Parse connect response
     int response_transaction_id =
@@ -121,11 +121,11 @@ public class UdpTrackerConnector {
     byte[] announceResponse =
         communicateWithSocket(datagramSocket, announceRequestPacket, announceResponsePacket);
     if (announceResponse == null) {
-      log.info("No response from socket");
+      log.debug("No response from socket");
       return peers; // Return empty addresses
     }
 
-    //    log.info("Announce Response" + Arrays.toString(announceResponse));
+    //    log.debug("Announce Response" + Arrays.toString(announceResponse));
 
     // Parse peers from announce response
     byte[] addresses = Arrays.copyOfRange(announceResponse, 20, announceResponse.length);
@@ -148,16 +148,16 @@ public class UdpTrackerConnector {
       @NonNull DatagramPacket requestPacket,
       @NonNull DatagramPacket responsePacket)
       throws IOException {
-    log.info("trying to connect to socket...");
+    log.debug("trying to connect to socket...");
 
     // Try connecting up to 8 times
     for (int i = 0; i < 8; i++) {
       datagramSocket.setSoTimeout((int) (15000 * Math.pow(2, i))); // Timeout is 15 * 2 ^ n seconds.
-      log.info(i + "th attempt trying to connect to tracker.");
+      log.debug(i + "th attempt trying to connect to tracker.");
 
       try {
         datagramSocket.send(requestPacket);
-        log.info("successfully sent");
+        log.debug("successfully sent");
         datagramSocket.receive(responsePacket);
         break;
       } catch (SocketTimeoutException s) {

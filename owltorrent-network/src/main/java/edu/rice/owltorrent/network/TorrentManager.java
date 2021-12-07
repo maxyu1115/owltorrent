@@ -88,7 +88,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       manager.completedPieces.add(idx);
     }
     manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, Event.STARTED);
-    log.info("Started seeding torrent {}", torrentContext.getTorrent());
+    log.debug("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
@@ -99,14 +99,19 @@ public class TorrentManager implements Runnable, AutoCloseable {
       PeerLocator locator) {
     TorrentManager manager =
         new TorrentManager(torrentContext, adapter, peerConnectorFactory, locator);
+    List<Integer> indices = new ArrayList<>();
     for (int idx = 0; idx < manager.totalPieces; idx++) {
-      manager.notStartedPieces.add(idx);
+      indices.add(idx);
     }
+    Collections.shuffle(indices);
+    log.debug(indices);
+    manager.notStartedPieces.addAll(indices);
+    log.debug(manager.notStartedPieces);
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
     //    manager.initPeers(
     //        List.of(new Peer(new InetSocketAddress("168.5.37.50", 6881), manager.torrent)));
-    log.info("Started downloading torrent {}", torrentContext.getTorrent());
+    log.debug("Started downloading torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
@@ -168,7 +173,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       } else {
         // finish setting up the connection
         connector.sendMessage(new BitfieldMessage(buildBitfield()));
-        log.info("Added peer {}", peer.getPeerID());
+        log.debug("Added peer {}", peer.getPeerID());
       }
     } catch (Exception exception) {
       log.error(exception);
@@ -199,7 +204,6 @@ public class TorrentManager implements Runnable, AutoCloseable {
       return;
     }
 
-    // TODO: fix int casting.
     try {
       int actualBlockSize = getBlockLength(pieceStatus, blockIndex);
       // Only write request when not waiting
@@ -241,24 +245,32 @@ public class TorrentManager implements Runnable, AutoCloseable {
             continue;
           }
 
-          boolean leecherFlag = requestFromLeecher(progress.pieceIndex, progress, i);
-          if (leecherFlag) leecherCount--;
-          else {
-            if (!connections.isEmpty()) requestBlockFromPeer(connections.remove(0), progress, i);
+          Optional<Peer> peer = requestFromLeecher(progress.pieceIndex);
+          if (peer.isEmpty()) {
+            leecherCount--;
+            if (!connections.isEmpty()) {
+              peer = Optional.of(connections.remove(0));
+            }
+          }
+          if (peer.isPresent()) {
+            requestBlockFromPeer(peer.get(), progress, i);
           }
         }
         if (connections.isEmpty() && leecherCount <= 0) break;
       }
       while ((leecherCount > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
-        int notStartedIndex = notStartedPieces.remove();
-        PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
-        uncompletedPieces.put(notStartedIndex, newPieceStatus);
-
-        boolean leecherFlag = requestFromLeecher(notStartedIndex, newPieceStatus, 0);
-        if (leecherFlag) leecherCount--;
-        else {
-          if (!connections.isEmpty())
-            requestBlockFromPeer(connections.remove(0), newPieceStatus, 0);
+        Optional<Peer> peer = requestFromLeecher(notStartedPieces.peek());
+        if (peer.isEmpty()) {
+          leecherCount--;
+          if (!connections.isEmpty()) {
+            peer = Optional.of(connections.remove(0));
+          }
+        }
+        if (peer.isPresent()) {
+          int notStartedIndex = notStartedPieces.remove();
+          PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+          uncompletedPieces.put(notStartedIndex, newPieceStatus);
+          requestBlockFromPeer(peer.get(), newPieceStatus, 0);
         }
       }
 
@@ -266,9 +278,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         // Advertise with Have message for more bandwidth
         for (Integer pieceIndex : notAdvertisedPieces) {
           for (Peer leecher : leechers) {
-            if (peers.containsKey(leecher)
-                && leecher.isPeerChoked()
-                && leecher.isPeerInterested()) {
+            if (peers.containsKey(leecher) && leecher.isPeerInterested()) {
               PeerConnectionContext conn = peers.get(leecher);
               try {
                 conn.peerConnector.sendMessage(new HaveMessage(pieceIndex));
@@ -306,9 +316,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
             + meteringSystem.getMetric("system", null, null, MeteringSystem.Metrics.FAILED_PIECES));
   }
 
-  private boolean requestFromLeecher(int index, PieceStatus pieceStatus, int blockIndex) {
-    boolean leecherFlag = false;
-    if (!indexToLeechers.containsKey(index)) return leecherFlag;
+  private Optional<Peer> requestFromLeecher(int index) {
+    if (!indexToLeechers.containsKey(index)) return Optional.empty();
 
     Set<Peer> leecherSet = indexToLeechers.get(index);
     for (Peer leecher : leecherSet) {
@@ -316,12 +325,10 @@ public class TorrentManager implements Runnable, AutoCloseable {
           && !leecher.isPeerChoked()
           && leecher.isAmInterested()
           && !peers.get(leecher).waitingForRequest.get()) {
-        requestBlockFromPeer(leecher, pieceStatus, blockIndex);
-        leecherFlag = true;
-        break;
+        return Optional.of(leecher);
       }
     }
-    return leecherFlag;
+    return Optional.empty();
   }
 
   private PieceStatus makeNewPieceStatus(int pieceIndex) {
@@ -394,7 +401,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
         .compareAndSet(BLOCK_IN_PROGRESS, BLOCK_DONE)) {
       for (AtomicInteger blockStatus : status.status) {
         if (blockStatus.get() != BLOCK_DONE) {
-          log.info(
+          log.debug(
               "Block "
                   + blockInfo.getOffsetWithinPiece() / status.blockLength
                   + " not done for piece number "
@@ -414,6 +421,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       }
       if (!valid) {
         meteringSystem.addSystemMetric(MeteringSystem.Metrics.FAILED_PIECES, 1);
+        log.error("Piece not valid: {}", pieceIndex);
         for (AtomicInteger blockStatus : status.status) {
           blockStatus.set(BLOCK_NOT_STARTED);
         }
@@ -542,7 +550,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
                 if (peers.containsKey(peer)) seeders.add(peer);
               } else {
                 for (int i = 0; i < torrent.getPieceHashes().size(); i++) {
-                  indexToLeechers.computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet()).add(peer);
+                  if (!(bitfield.getBit(i))) {
+                    indexToLeechers
+                        .computeIfAbsent(i, x -> ConcurrentHashMap.newKeySet())
+                        .add(peer);
+                  }
                 }
               }
               break;
@@ -556,6 +568,9 @@ public class TorrentManager implements Runnable, AutoCloseable {
               int index = ((PieceActionMessage) message).getIndex();
               int begin = ((PieceActionMessage) message).getBegin();
               int length = ((PieceActionMessage) message).getLength();
+              if (!completedPieces.contains(index)) {
+                break;
+              }
               FileBlock piece;
               try {
                 piece = networkStorageAdapter.read(new FileBlockInfo(index, begin, length));
@@ -572,7 +587,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
               FileBlock fileBlock = ((PieceMessage) message).getFileBlock();
               if (validateAndReportBlockInProgress(peer, fileBlock)) {
                 try {
-                  log.info(
+                  log.debug(
                       "Trying to write file block "
                           + fileBlock.getPieceIndex()
                           + " "

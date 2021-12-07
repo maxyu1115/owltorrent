@@ -59,7 +59,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
 
   @VisibleForTesting
   Optional<TorrentManager> verifyHandShake(ByteBuffer handShake) {
-    log.info("Received Handshake: {}", Arrays.toString(handShake.array()));
+    log.debug("Received Handshake: {}", Arrays.toString(handShake.array()));
     if (handShake.get() != 19) return Optional.empty();
 
     byte[] title = "BitTorrent protocol".getBytes(StandardCharsets.US_ASCII);
@@ -77,7 +77,7 @@ public class ClientHandler implements Runnable, AutoCloseable {
     Optional<TorrentManager> torrentManager =
         torrentRepository.retrieveTorrent(new TwentyByteId(infoHash));
     if (torrentManager.isEmpty()) {
-      log.info("Received a request for file that's not being seeded.");
+      log.debug("Received a request for file that's not being seeded.");
       return Optional.empty();
     }
 
