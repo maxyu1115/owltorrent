@@ -48,8 +48,7 @@ public class RequestMessageHandlerTest {
   }
 
   @Test
-  public void testHandleCorrect()
-      throws Exceptions.IllegalByteOffsets, IOException, InterruptedException {
+  public void testHandleNotHave() throws IOException, InterruptedException {
     PieceActionMessage correctMsg = PieceActionMessage.makeRequestMessage(1, 20, 10);
     List<byte[]> testList = new ArrayList<>();
     testList.add(new byte[] {});
@@ -58,13 +57,13 @@ public class RequestMessageHandlerTest {
 
     when(torrent.getPieceHashes()).thenReturn(testList);
     when(torrent.getPieceLength()).thenReturn((long) 128);
-    when(storageAdapter.read(any())).thenReturn(new FileBlock(1, 20, new byte[] {(byte) 0x20}));
     when(peer.isPeerInterested()).thenReturn(true);
     when(peer.isAmChoked()).thenReturn(false);
 
     messageHandler.handleMessage(correctMsg, conn);
 
-    verify(conn, times(1)).sendMessage(eq(new PieceMessage(1, 20, new byte[] {(byte) 0x20})));
+    // The torrent manage shouldn't send a response since it doesn't have the piece
+    verify(conn, times(0)).sendMessage(eq(new PieceMessage(1, 20, new byte[] {(byte) 0x20})));
   }
 
   @Test

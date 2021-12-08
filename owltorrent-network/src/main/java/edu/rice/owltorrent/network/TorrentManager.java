@@ -8,6 +8,8 @@ import edu.rice.owltorrent.common.util.Exceptions;
 import edu.rice.owltorrent.network.messages.*;
 import java.io.IOException;
 import java.math.RoundingMode;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -104,9 +106,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       indices.add(idx);
     }
     Collections.shuffle(indices);
-    log.debug(indices);
     manager.notStartedPieces.addAll(indices);
-    log.debug(manager.notStartedPieces);
     manager.initPeers(
         manager.announce(0, torrentContext.getTorrent().getTotalLength(), 0, Event.STARTED));
     //    manager.initPeers(
@@ -127,6 +127,25 @@ public class TorrentManager implements Runnable, AutoCloseable {
   }
 
   private void initPeers(List<Peer> peerList) {
+    // filter out our own ip
+    peerList =
+        peerList.stream()
+            .filter(
+                peer -> {
+                  try {
+                    // Note that by filtering like this, we surprisingly don't break the unit test,
+                    // since the unit test uses "localhost" instead of an actual ip
+                    return !peer.getAddress()
+                        .getAddress()
+                        .getHostAddress()
+                        .equals(InetAddress.getLocalHost().getHostAddress());
+                  } catch (UnknownHostException e) {
+                    e.printStackTrace();
+                    return true;
+                  }
+                })
+            .collect(Collectors.toList());
+    log.debug(peerList);
     for (Peer peer : peerList) {
       if (peers.containsKey(peer)) {
         continue;
@@ -366,7 +385,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
    * @return false if another thread already started to download that block or the block size is not
    *     expected
    */
-  private boolean validateAndReportBlockInProgress(Peer peer, FileBlockInfo blockInfo) {
+  private synchronized boolean validateAndReportBlockInProgress(
+      Peer peer, FileBlockInfo blockInfo) {
     peers.get(peer).waitingForRequest.set(false);
     if (completedPieces.contains(blockInfo.getPieceIndex())) {
       log.debug("block already finished downloading");
