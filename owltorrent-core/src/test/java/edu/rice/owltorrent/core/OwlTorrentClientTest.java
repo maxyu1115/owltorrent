@@ -89,7 +89,7 @@ public class OwlTorrentClientTest {
     // Again this is a bit of a hack, if we don't download the file within a second we throw an
     // error
     long startTime = System.currentTimeMillis();
-    while (System.currentTimeMillis() - startTime < 1500 && meter.ratioCompleted() < 1.0) {
+    while (System.currentTimeMillis() - startTime < 1000 && meter.ratioCompleted() < 1.0) {
       Thread.sleep(10);
     }
     assertEquals(1.0, meter.ratioCompleted(), 0);

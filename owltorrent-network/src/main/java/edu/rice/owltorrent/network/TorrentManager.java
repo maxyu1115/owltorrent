@@ -32,7 +32,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
   @RequiredArgsConstructor
   private static class PeerConnectionContext {
     final PeerConnector peerConnector;
-    final AtomicBoolean waitingForRequest = new AtomicBoolean(false);
+    final AtomicBoolean waitingForResponse = new AtomicBoolean(false);
   }
 
   private static final int DEFAULT_BLOCK_NUM = 2;
@@ -226,7 +226,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
     try {
       int actualBlockSize = getBlockLength(pieceStatus, blockIndex);
       // Only write request when not waiting
-      if (peerContext.waitingForRequest.compareAndSet(false, true)) {
+      if (peerContext.waitingForResponse.compareAndSet(false, true)) {
         peerConnector.sendMessage(
             PieceActionMessage.makeRequestMessage(
                 pieceStatus.pieceIndex, blockIndex * pieceStatus.blockLength, actualBlockSize));
@@ -242,41 +242,32 @@ public class TorrentManager implements Runnable, AutoCloseable {
     double startingTime = System.currentTimeMillis();
 
     while (!(uncompletedPieces.isEmpty() && notStartedPieces.isEmpty())) {
-      // TODO: here we're only downloading from seeders
-      //  Request a missing piece from each Peer
+
+      // Continue all in progress downloads
+      for (PieceStatus progress : uncompletedPieces.values()) {
+        if (peers.get(progress.pieceOwner).waitingForResponse.get()) {
+          continue;
+        }
+        for (int i = 0; i < progress.status.size(); i++) {
+          if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
+            continue;
+          }
+          requestBlockFromPeer(progress.pieceOwner, progress, i);
+        }
+      }
+
       List<Peer> connections =
           seeders.stream()
               .filter(
                   peer ->
                       !peer.isPeerChoked()
                           && peer.isAmInterested()
-                          && !peers.get(peer).waitingForRequest.get())
+                          && !peers.get(peer).waitingForResponse.get())
               .collect(Collectors.toList());
       Collections.shuffle(connections);
 
       int leecherCount = leechers.size();
 
-      for (PieceStatus progress : uncompletedPieces.values()) {
-        for (int i = 0; i < progress.status.size(); i++) {
-          if (connections.isEmpty() && leecherCount <= 0) break;
-
-          if (progress.status.get(i).get() != BLOCK_NOT_STARTED) {
-            continue;
-          }
-
-          Optional<Peer> peer = requestFromLeecher(progress.pieceIndex);
-          if (peer.isEmpty()) {
-            leecherCount--;
-            if (!connections.isEmpty()) {
-              peer = Optional.of(connections.remove(0));
-            }
-          }
-          if (peer.isPresent()) {
-            requestBlockFromPeer(peer.get(), progress, i);
-          }
-        }
-        if (connections.isEmpty() && leecherCount <= 0) break;
-      }
       while ((leecherCount > 0 || !connections.isEmpty()) && !notStartedPieces.isEmpty()) {
         Optional<Peer> peer = requestFromLeecher(notStartedPieces.peek());
         if (peer.isEmpty()) {
@@ -287,12 +278,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
         }
         if (peer.isPresent()) {
           int notStartedIndex = notStartedPieces.remove();
-          PieceStatus newPieceStatus = makeNewPieceStatus(notStartedIndex);
+          PieceStatus newPieceStatus = makeNewPieceStatus(peer.get(), notStartedIndex);
           uncompletedPieces.put(notStartedIndex, newPieceStatus);
           requestBlockFromPeer(peer.get(), newPieceStatus, 0);
         }
       }
 
+      // Advertise
       if (notAdvertisedPieces.size() > NOT_ADVERTISED_LIMIT) {
         // Advertise with Have message for more bandwidth
         for (Integer pieceIndex : notAdvertisedPieces) {
@@ -343,14 +335,14 @@ public class TorrentManager implements Runnable, AutoCloseable {
       if (leechers.contains(leecher)
           && !leecher.isPeerChoked()
           && leecher.isAmInterested()
-          && !peers.get(leecher).waitingForRequest.get()) {
+          && !peers.get(leecher).waitingForResponse.get()) {
         return Optional.of(leecher);
       }
     }
     return Optional.empty();
   }
 
-  private PieceStatus makeNewPieceStatus(int pieceIndex) {
+  private PieceStatus makeNewPieceStatus(Peer pieceOwner, int pieceIndex) {
     // TODO: fix int casting, and also add handling when piece length isn't a multiple of
     //  default block num
     if (((int) torrent.getPieceLength()) % DEFAULT_BLOCK_NUM != 0) {
@@ -362,10 +354,11 @@ public class TorrentManager implements Runnable, AutoCloseable {
         pieceIndex < totalPieces - 1
             ? DEFAULT_BLOCK_NUM
             : IntMath.divide((int) torrent.getLastPieceLength(), blockLength, RoundingMode.CEILING);
-    return new PieceStatus(pieceIndex, blockNum, blockLength);
+    return new PieceStatus(pieceOwner, pieceIndex, blockNum, blockLength);
   }
 
-  private PieceStatus getOrInitPieceStatus(int pieceIndex) {
+  // The peer is needed in the rare scenario a peer just sends us an unrequested piece message
+  private PieceStatus getOrInitPieceStatus(int pieceIndex, Peer peer) {
     return uncompletedPieces.computeIfAbsent(
         pieceIndex,
         i -> {
@@ -374,7 +367,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
             log.error("uncompleted piece missing from Map");
             throw new IllegalStateException("uncompleted piece missing from Map");
           }
-          return makeNewPieceStatus(i);
+          return makeNewPieceStatus(peer, i);
         });
   }
 
@@ -387,13 +380,13 @@ public class TorrentManager implements Runnable, AutoCloseable {
    */
   private synchronized boolean validateAndReportBlockInProgress(
       Peer peer, FileBlockInfo blockInfo) {
-    peers.get(peer).waitingForRequest.set(false);
+    peers.get(peer).waitingForResponse.set(false);
     if (completedPieces.contains(blockInfo.getPieceIndex())) {
       log.debug("block already finished downloading");
       return false;
     }
 
-    PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex());
+    PieceStatus status = getOrInitPieceStatus(blockInfo.getPieceIndex(), peer);
     int blockIndex = blockInfo.getOffsetWithinPiece() / status.blockLength;
 
     if (getBlockLength(status, blockIndex) != blockInfo.getLength()) {
@@ -445,7 +438,8 @@ public class TorrentManager implements Runnable, AutoCloseable {
         for (AtomicInteger blockStatus : status.status) {
           blockStatus.set(BLOCK_NOT_STARTED);
         }
-        uncompletedPieces.put(pieceIndex, status);
+        // add back to queue, so a new peer can pick it up
+        notStartedPieces.add(status.pieceIndex);
       } else {
         meteringSystem.addSystemMetric(MeteringSystem.Metrics.EFFECTIVE_PIECES, 1);
         completedPieces.add(pieceIndex);
@@ -482,13 +476,15 @@ public class TorrentManager implements Runnable, AutoCloseable {
 
   /** Piece Status class used to keep track of how much each piece is downloaded */
   static final class PieceStatus {
+    final Peer pieceOwner;
     final int pieceIndex;
     // Should be fine to use Atomic Integer for now. Since we don't expect a lot of concurrency on
     // the same piece
     final List<AtomicInteger> status;
     final int blockLength;
 
-    PieceStatus(int pieceIndex, int blockNum, int blockLength) {
+    PieceStatus(Peer pieceOwner, int pieceIndex, int blockNum, int blockLength) {
+      this.pieceOwner = pieceOwner;
       this.pieceIndex = pieceIndex;
       List<AtomicInteger> status = new ArrayList<>();
       for (int i = 0; i < blockNum; i++) {
