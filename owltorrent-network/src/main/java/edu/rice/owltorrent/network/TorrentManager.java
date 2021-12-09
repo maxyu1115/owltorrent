@@ -90,7 +90,7 @@ public class TorrentManager implements Runnable, AutoCloseable {
       manager.completedPieces.add(idx);
     }
     manager.announce(torrentContext.getTorrent().getTotalLength(), 0, 0, Event.STARTED);
-    log.debug("Started seeding torrent {}", torrentContext.getTorrent());
+    log.info("Started seeding torrent {}", torrentContext.getTorrent());
     return manager;
   }
 
